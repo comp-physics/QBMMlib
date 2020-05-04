@@ -1,4 +1,5 @@
-These are some Mathematical (Wolfram Language) notebooks that I have been developing for quadrature-based moment methods
+These are some Mathematical (Wolfram Language) notebooks that I have been developing for quadrature-based moment methods. 
+Great thanks is owed to Professors Rodney Fox and Alberto Passalacqua (Iowa State University) for their part in developing these algorithms and teaching me the same.
 
 
 Some references:
