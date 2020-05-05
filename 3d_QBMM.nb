@@ -185,7 +185,7 @@ Cell[BoxData[{
   RowBox[{
    RowBox[{"T", "=", 
     RowBox[{"Nperiod", " ", "Toneperiod"}]}], ";"}], 
-  "\[IndentingNewLine]"}], "\n", 
+  "\n"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"dt", "=", 
    RowBox[{"1.", "  ", 
@@ -201,7 +201,7 @@ Cell[BoxData[{
    RowBox[{"tol", "=", 
     RowBox[{"1", " ", 
      SuperscriptBox["10", 
-      RowBox[{"-", "5"}]]}]}], ";"}], "\n"}], "\[IndentingNewLine]", 
+      RowBox[{"-", "5"}]]}]}], ";"}], "\[IndentingNewLine]"}], "\n", 
  RowBox[{
   RowBox[{"\[Mu]R", "=", "1."}], ";", 
   RowBox[{"\[Sigma]R", "=", "0.1"}], ";"}], "\[IndentingNewLine]", 
@@ -617,7 +617,7 @@ Cell[BoxData[{
      RowBox[{"Ros", ",", "wRos"}], "}"}], "=", 
     RowBox[{"wheeler", "[", 
      RowBox[{"momRos", ",", "nro"}], "]"}]}], ";"}], 
-  "\n"}], "\[IndentingNewLine]", 
+  "\[IndentingNewLine]"}], "\n", 
  RowBox[{
   RowBox[{
    RowBox[{
@@ -628,12 +628,14 @@ Cell[BoxData[{
      RowBox[{"RRdPDF", ",", 
       RowBox[{"{", 
        RowBox[{"i", ",", "j"}], "}"}]}], "]"}]}], ";"}], 
-  "\n"}], "\[IndentingNewLine]", 
+  "\[IndentingNewLine]"}], "\n", 
  RowBox[{
-  RowBox[{"method", "=", "\"\<CQMOM\>\""}], ";", 
+  RowBox[{
+   RowBox[{"method", "=", "\"\<CQMOM\>\""}], ";"}], 
   RowBox[{"(*", 
-   RowBox[{"\"\<CQMOM\>\"", " ", "or", " ", "\"\<CHyQMOM\>\""}], "*)"}], 
-  "\[IndentingNewLine]", 
+   RowBox[{"\"\<CQMOM\>\"", " ", "or", " ", "\"\<CHyQMOM\>\""}], 
+   "*)"}]}], "\[IndentingNewLine]", 
+ RowBox[{
   RowBox[{"nr", "=", "2"}], ";"}], "\[IndentingNewLine]", 
  RowBox[{
   RowBox[{"nrd", "=", "2"}], ";"}], "\n", 
@@ -66994,3 +66996,4 @@ StyleDefinitions->Notebook[{
   FrontEndVersion -> "12.0 for Mac OS X x86 (64-bit) (April 8, 2019)", 
   StyleDefinitions -> "PrivateStylesheetFormatting.nb"]
 ]
+
