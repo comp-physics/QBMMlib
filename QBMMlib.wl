@@ -369,25 +369,23 @@ chyqmom9[momin_, kk_, qmax_] :=
     Return[{n, u, v}, Module];
  ];
    
-hyqmom[momin_, qmax_: 0] := 
-  Module[{moms = momin}, 
+hyqmom[momin_, qmax_: 0] := Module[{moms = momin}, 
    If[Length[moms] == 3, Return[hyqmom2[moms], Module]]; 
    If[Length[moms] == 5, Return[hyqmom3[moms, qmax], Module]]; 
    Print["Error!"];
 ];
    
-hyqmom2[momin_] := 
-  Module[{moms = momin, n, u, bu, d2, c2}, 
-      n = Table[0, {i, 2}]; 
-      u = n; 
-      bu = moms[[2]]/moms[[1]]; 
-      d2 = moms[[3]]/moms[[1]]; 
-      c2 = d2 - bu^2; 
-      n[[1]] = moms[[1]]/2; 
-      n[[2]] = moms[[1]]/2; 
-      u[[1]] = bu - Sqrt[c2]; 
-      u[[2]] = bu + Sqrt[c2]; 
-  Return[{n, u}, Module];
+hyqmom2[momin_] := Module[{moms = momin, n, u, bu, d2, c2}, 
+    n = Table[0, {i, 2}]; 
+    u = n; 
+    bu = moms[[2]]/moms[[1]]; 
+    d2 = moms[[3]]/moms[[1]]; 
+    c2 = d2 - bu^2; 
+    n[[1]] = moms[[1]]/2; 
+    n[[2]] = moms[[1]]/2; 
+    u[[1]] = bu - Sqrt[c2]; 
+    u[[2]] = bu + Sqrt[c2]; 
+    Return[{n, u}, Module];
 ];
    
 hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall, 
@@ -589,16 +587,153 @@ cqmom21p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRds, xi, w, v
     Return[{wtot, xi, xis}, Module];
 ];
 
+vander[x_,q_]:=Module[{n,w,b,s,t,xx,c},
+    n=Length[q];
+    If[n==1,
+        w={q[[1]]};
+        Return[w,Module];
+    ];
+    c=Table[0,{i,n}];
+    w=c;
+    Do[
+        xx=-x[[i]];
+        Do[
+            c[[j]]=c[[j]]+xx c[[j+1]];
+        ,{j,n+1-i,n-1}];
+        c[[n]]=c[[n]]+xx;
+    ,{i,2,n}];
+    Do[
+        xx=x[[i]];
+        t=1;
+        b=1;
+        s=q[[n]];
+        Do[
+            b=c[[k]]+xx b;
+            s=s+q[[k-1]]b;
+            t=xx t+b;
+        ,{k,n,2,-1}];
+        w[[i]]=s/t;
+    ,{i,1,n}];
+    Return[w,Module];
+];
+
+adaptwheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
+    eabs=10^-10,\[Sigma],a,b,Ja,w,x,xi,eval,evec,esys,myn,ind,nu,
+    nout,cutoff,dab,mab,bmin,z,mindab,maxmab},
+    (* rmin is minimum ratio wmin/wmax *)
+    (* eabs is minimum distance between distinct abscissas *)
+    cutoff=0.;
+    If [mom[[1]]<0,
+        Print["Negative number density"];
+        Abort[];
+    ];
+    If[mom[[1]]==0,
+        w=0.;
+        x=0.;
+        Return[{{x},{w},1},Module];
+    ];
+    If[
+        nn==1||mom[[1]]<rmin[[1]],
+        w=mom[[1]];
+        x=mom[[2]]/mom[[1]];
+        Return[{{x},{w},1},Module];
+    ];
+
+    (* Compute modified moments equal to moments *)
+    nu=mom;
+    (* Construct recurrence matrix *)
+    ind=nn;
+    a=Table[0.,{i,ind}];
+    b=Table[0.,{i,ind}];
+    \[Sigma]=Table[0.,{i,2ind+1},{j,2ind+1}];
+    Do[
+        \[Sigma][[2,i]]=nu[[i-1]];
+    ,{i,2,2ind+1}];
+    a[[1]]=nu[[2]]/nu[[1]];
+    b[[1]]=0;
+    Do[
+        Do[\[Sigma][[k,l]]=\[Sigma][[k-1,l+1]]-a[[k-2]]\[Sigma][[k-1,l]]-b[[k-2]]\[Sigma][[k-2,l]],{l,k,2ind-k+3}];
+        a[[k-1]]=\[Sigma][[k,k+1]]/\[Sigma][[k,k]]-\[Sigma][[k-1,k]]/\[Sigma][[k-1,k-1]];
+        b[[k-1]]=\[Sigma][[k,k]]/\[Sigma][[k-1,k-1]];
+    ,{k,3,ind+1}];
+    (* Determine maximum n using diag elements of sig *)
+    myn=nn;
+    Do[
+        If[
+            \[Sigma][[k,k]]<=cutoff,
+            myn=k-2;
+            If[
+                myn==1,
+                w=mom[[1]];
+                x=mom[[2]]/mom[[1]];
+                Return[{{x},{w},1},Module];
+            ];
+        ];
+    ,{k,ind+1,3,-1}];
+
+    (* Compute quadrature using maximum n *)
+    a=Table[0,{i,myn}];
+    b=Table[0,{i,myn}];
+    w=Table[0,{i,myn}];
+    x=Table[0,{i,myn}];
+    \[Sigma]=Table[0,{i,2 myn+1},{j,2myn+1}];
+    Do[\[Sigma][[2,i]]=nu[[i-1]],{i,2,2 myn+1}];
+    a[[1]]=nu[[2]]/nu[[1]];
+    b[[1]]=0.;
+    Do[
+        Do[\[Sigma][[k,l]]=\[Sigma][[k-1,l+1]]-a[[k-2]] \[Sigma][[k-1,l]]-b[[k-2]] \[Sigma][[k-2,l]],{l,k,2 myn-k+3}];
+        a[[k-1]]=\[Sigma][[k,k+1]]/\[Sigma][[k,k]]-\[Sigma][[k-1,k]]/\[Sigma][[k-1,k-1]];
+        b[[k-1]]=\[Sigma][[k,k]]/\[Sigma][[k-1,k-1]];
+    ,{k,3,myn+1}];
+    (* Check if moments are not realizable (should never happen) *)
+    bmin=Min[b];
+    If[bmin<0,Print["Moments in Wheeler moments are not realizable!"];Abort[];];
+    (* Setup Jacobi matrix for n-point quadrature, adapt n using rmax and eabs *)
+    Do[
+        If[nl==1,
+        w=mom[[1]];
+        x=mom[[2]]/mom[[1]];
+        Return[{{x},{w},1},Module];
+        ];
+        z=Table[0,{i,1,nl},{j,1,nl}];
+        Do[
+            z[[i,i]]=a[[i]];
+            z[[i,i+1]]=Sqrt[b[[i+1]]];
+            z[[i+1,i]]=z[[i,i+1]];
+        ,{i,1,nl-1}];
+        z[[nl,nl]]=a[[nl]];
+        (* Compute weights and abscissas *)
+        esys=Eigensystem[z];
+        eval=esys[[1]];evec=esys[[2]];
+        w=Table[0,{i,1,nl}];
+        x=w;
+        dab=w;
+        mab=w;
+        x=eval;
+        w=Table[evec[[i,1]]^2 mom[[1]],{i,1,nl}];
+        Do[
+            dab[[i]]=Min[Abs[x[[i]]-x[[1;;i-1]]]];
+            mab[[i]]=Max[Abs[x[[i]]-x[[1;;i-1]]]];
+        ,{i,nl,2,-1}];
+        mindab=Min[dab[[2;;nl]]];
+        maxmab=Max[mab[[2;;nl]]];
+        If[nl==2,maxmab=1];
+        (* Check conditions that weights and abscissas must both satisfy *)
+        If[
+            Min[w]/Max[w]>rmin[[nl]]&&mindab/maxmab>eabs,
+            Return[{x,w,Length[w]},Module];
+        ];
+    ,{nl,myn,1,-1}];
+];
+
 End[];
 EndPackage[];
 
-
-project[xix_, xiy_, w_, ks_, ksp_, nr_, nrd_] := 
-  Module[{moms, mom, momsp}, 
-   mom[p_, q_] := Sum[w[[i]] xix[[i]]^p xiy[[i]]^q, {i, nr nrd}]; 
-   moms = Table[mom[ks[[i, 1]], ks[[i, 2]]], {i, 1, Length[ks]}]; 
-   momsp = Table[mom[ksp[[i, 1]], ksp[[i, 2]]], {i, 1, Length[ksp]}]; 
-  {moms,momsp}
+project[xix_, xiy_, w_, ks_, ksp_, nr_, nrd_] := Module[{moms, mom, momsp}, 
+    mom[p_, q_] := Sum[w[[i]] xix[[i]]^p xiy[[i]]^q, {i, nr nrd}]; 
+    moms = Table[mom[ks[[i, 1]], ks[[i, 2]]], {i, 1, Length[ks]}]; 
+    momsp = Table[mom[ksp[[i, 1]], ksp[[i, 2]]], {i, 1, Length[ksp]}]; 
+    Return[{moms,momsp},Module];
 ];
      
 project1[xi_, xis_, wtot_, ks_, ksp_, nr_, nrd_,nro_:0,wRo_:0,Ros_:0] := 
