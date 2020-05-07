@@ -53,6 +53,7 @@ quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Modul
 			momsp=Table[momq[ksp[[i, 1]], ksp[[i, 2]],ks[[i,3]]],{i,Length[ksp]}];
 		];
 	];
+    (* moms and momsp are projected moments, momq is moment function (via quadrature) for any power pqr *)
 	Return[{moms,momsp,momq},Module];
 ];
 
@@ -80,72 +81,86 @@ wheeler[m_, n_] := Module[{nn = n, mm = m, \[Sigma], a, b, Ja, w, xi, eval, evec
     Return[{eval, w}, Module];
 ];
 
-momidx[nr_, nrd_, method_, nro_: 0] := Module[{ks, k1, k2,kstemp}, 
+momidx[nr_, nrd_, method_, numperm_: 2, nro_: 0] := Module[{ks, k1, k2,kstemp}, 
     If[method == "CHyQMOM", 
         If[nr == 2, 
             If[
                 nro == 0, 
                 ks = {{0, 0}, {1, 0}, {0, 1}, {2, 0}, {1, 1}, {0, 2}};
             ,
-                ks = Flatten[Table[{{0, 0, i}, {1, 0, i}, {0, 1, i}, {2, 0, i}, {1, 1, i}, {0, 2, i}}, {i, 0, nro}], 1];
+                ks = Flatten[Table[{{0, 0, i}, {1, 0, i}, {0, 1, i}, {2, 0, i}, {1, 1, i}, {0, 2, i}}, {i, 0, nro-1}], 1];
             ];
         ]; 
         If[nr == 3, 
             ks = {{0, 0}, {1, 0}, {0, 1}, {2, 0}, {1, 1}, {0, 2}, {3, 0}, {0,3}, {4, 0}, {0, 4}}
+            (* TODO: Add support for Ro polydispersity here *)
         ]; 
     ]; 
     If[method == "CQMOM", 
         If[nro == 0, 
-            k1 = Flatten[{Table[{q, p}, {q, 0, nr - 1}, {p, 0, 2 nrd - 1}], Table[{q, p}, {q, nr, 2 nr - 1}, {p, 0, 0}]}, 2]; 
-            k2 = Flatten[{Table[{p, q}, {q, 0, nrd - 1}, {p, 0, 2 nr - 1}], Table[{p, q}, {q, nrd, 2 nrd - 1}, {p, 0, 0}]}, 2]; 
-            ks = DeleteDuplicates[Join[k1, k2]]; 
+            k1 = Flatten[{Table[{q,p}, {q, 0, nr - 1}, {p, 0, 2 nrd - 1}], Table[{q, p}, {q, nr, 2 nr - 1}, {p, 0, 0}]}, 2]; 
+            k2 = Flatten[{Table[{p,q}, {q, 0, nrd - 1}, {p, 0, 2 nr - 1}], Table[{p, q}, {q, nrd, 2 nrd - 1}, {p, 0, 0}]}, 2]; 
+            If[
+                numperm==2,
+                ks = DeleteDuplicates[Join[k1, k2]]; 
+            ,
+                ks = DeleteDuplicates[k1]; 
+            ];
         ,
             Do[
-                k1[i] = Flatten[{Table[{q, p,i}, {q, 0, nr - 1}, {p, 0, 2 nrd - 1}], Table[{q, p,i}, {q, nr, 2 nr - 1}, {p, 0, 0}]}, 2]; 
-                k2[i] = Flatten[{Table[{p, q,i}, {q, 0, nrd - 1}, {p, 0, 2 nr - 1}], Table[{p, q,i}, {q, nrd, 2 nrd - 1}, {p, 0, 0}]}, 2]; 
-                kstemp[i]=DeleteDuplicates[Join[k1[i],k2[i]]];
+                k1[i] = Flatten[{Table[{q,p,i}, {q, 0, nr - 1}, {p, 0, 2 nrd - 1}], Table[{q,p,i}, {q, nr, 2 nr - 1}, {p, 0, 0}]}, 2]; 
+                k2[i] = Flatten[{Table[{p,q,i}, {q, 0, nrd - 1}, {p, 0, 2 nr - 1}], Table[{p,q,i}, {q, nrd, 2 nrd - 1}, {p, 0, 0}]}, 2]; 
+                If[
+                    numperm==2,
+                    kstemp[i] = DeleteDuplicates[Join[k1[i],k2[i]]]; 
+                ,
+                    kstemp[i] = DeleteDuplicates[k1[i]]; 
+                ];
             ,{i,0,nro-1}];
             ks=Flatten[Join[Table[kstemp[i],{i,0,nro-1}]],1];
         ];
     ]; 
     Return[ks, Module];
- ];
+];
       
 pointer[moms_,ks_,w_:0,ro_:0] := Module[{eqns, vars, linsolv, pm, mymom}, 
     If[
         Length[ks[[1]]] == 2, 
-        eqns = Table[ moms[[i]] == pm[ks[[i, 1]], ks[[i, 2]]], {i, Length[ks]}]; 
-        vars = DeleteDuplicates[ Flatten[Table[pm[ks[[i, 1]], ks[[i, 2]]], {i, Length[ks]}]]];
-        linsolv = First[vars /. Solve[eqns, vars]];
-        mymom[q_, p_] := linsolv[[First[First[Position[ks, {q, p}]]]]]; 
+        eqns = Table[moms[[i]] == pm[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]; 
+        vars = DeleteDuplicates[ Flatten[Table[pm[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]]];
+        linsolv = First[vars/.Solve[eqns, vars]];
+        mymom[q_, p_] := linsolv[[First[First[Position[ks,{q,p}]]]]]; 
         Return[mymom, Module];
     ];
     If[
-        Length[ks[[1]]] == 3, 
-        eqns = Table[moms[[i]] == Sum[ w[[l + 1]] ro[[l + 1]]^ks[[i, 3]] pm[ks[[i, 1]], ks[[i, 2]], l], {l, 0, Length[ro] - 1}], {i, Length[ks]}]; 
+        Length[ks[[1]]] == 3,
+        (* converts vector of total moments m_lmn to conditioned moments m_lm @ each R_o,k  *)
+        eqns = Table[moms[[i]] == Sum[ w[[l + 1]] ro[[l + 1]]^ks[[i, 3]] pm[ks[[i, 1]], ks[[i, 2]], l], {l,0,Length[ro]-1}], {i,Length[ks]}]; 
         vars = DeleteDuplicates[Flatten[Table[pm[ks[[i, 1]], ks[[i, 2]], l], {l,0,Length[ro]-1},{i,Length[ks]}]]]; 
-        linsolv = First[vars /. Solve[eqns, vars]]; 
-        mymom[q_, p_, r_] := linsolv[[First[First[Position[ks, {q, p, r}]]]]]; 
+        linsolv = First[vars/.Solve[eqns, vars]]; 
+        mymom[q_, p_, r_] := linsolv[[First[First[Position[ks,{q,p,r}]]]]]; 
         Return[mymom, Module];
     ]; 
     Print["Error, k index not 2D or 3D!"];
 ];
     
 chyqmom[momin_, k_, q_, wRo_: 0, Ros_: 0] := Module[{moms = momin, ks = k},
-    If[wRo==0,
+    If[
+        Length[wRo]==0,
         If[Mod[Length[moms], 6] == 0,Return[chyqmom4[moms, ks], Module]]; 
         If[Mod[Length[moms], 10] == 0,Return[chyqmom9[moms, ks, q], Module]];
     ,
-        If[Mod[Length[moms], 6] == 0, Return[chyqmom4[moms, ks, wRo, Ros], Module]]; 
-        If[Mod[Length[moms], 10] == 0, Return[chyqmom9[moms, ks, q, wRo, Ros], Module]];   
+        If[Mod[Length[moms], 6] == 0, Return[chyqmom4p[moms, ks, wRo, Ros], Module]]; 
+        If[Mod[Length[moms], 10] == 0, Return[chyqmom9p[moms, ks, q, wRo, Ros], Module]];   
     ];
     Print["Error!"];
- ];
+];
    
 chyqmom4[momin_, kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm, mymom, n, 
     bu, bv, d20, d11, d02, c20, c11, c02, M1, rho, up, Vf, mu2avg, 
     mu2, M3, rh3, up3, vp21, vp22, rho21, rho22, u, v}, 
     mymom = pointer[moms, ks]; 
+
     n = Table[0, {i, 4}]; u = n; v = n; 
     bu = mymom[1, 0]/mymom[0, 0]; 
     bv = mymom[0, 1]/mymom[0, 0]; 
@@ -185,9 +200,64 @@ chyqmom4[momin_, kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm,
     v[[3]] = Vf[[2]] + vp21; 
     v[[4]] = Vf[[2]] + vp22; 
     v = bv + v; 
-    Return[{n, u, v}, Module];
+    Return[{n,u,v}, Module];
 ];
-   
+
+chyqmom4p[momin_,kk_,wRo_,Ros_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm, mymom, n, 
+    bu, bv, d20, d11, d02, c20, c11, c02, M1, rho, up, Vf, mu2avg, 
+    mu2, M3, rh3, up3, vp21, vp22, rho21, rho22, u, v, nro, nn, uu, vv}, 
+
+    nro = Length[wRo];
+    mymom = pointer[moms, ks, wRo, Ros]; 
+    (* operating on conditioned moments for each Ro slice *)
+    Do[
+        n = Table[0, {i, 4}]; u = n; v = n; 
+        bu  = mymom[1, 0, l-1]/mymom[0, 0, l-1]; 
+        bv  = mymom[0, 1, l-1]/mymom[0, 0, l-1]; 
+        d20 = mymom[2, 0, l-1]/mymom[0, 0, l-1]; 
+        d11 = mymom[1, 1, l-1]/mymom[0, 0, l-1]; 
+        d02 = mymom[0, 2, l-1]/mymom[0, 0, l-1]; 
+        c20 = d20 - bu^2; 
+        c11 = d11 - bu bv;
+        c02 = d02 - bv^2; 
+        M1 = {1, 0, c20}; 
+        {rho, up} = hyqmom[M1]; 
+        Vf = c11 up/c20; 
+        mu2avg = c02 - Total[rho Vf^2]; 
+        mu2avg = Max[mu2avg, 0]; 
+        mu2 = mu2avg; 
+        M3 = {1, 0, mu2}; 
+        {rh3, up3} = hyqmom[M3]; 
+        vp21 = up3[[1]]; 
+        vp22 = up3[[2]]; 
+        rho21 = rh3[[1]]; 
+        rho22 = rh3[[2]]; 
+
+        n[[1]] = rho[[1]] rho21; 
+        n[[2]] = rho[[1]] rho22; 
+        n[[3]] = rho[[2]] rho21; 
+        n[[4]] = rho[[2]] rho22; 
+        n = mymom[0, 0, l-1] n; 
+
+        u[[1]] = up[[1]]; 
+        u[[2]] = up[[1]]; 
+        u[[3]] = up[[2]]; 
+        u[[4]] = up[[2]]; 
+        u = bu + u;
+
+        v[[1]] = Vf[[1]] + vp21; 
+        v[[2]] = Vf[[1]] + vp22; 
+        v[[3]] = Vf[[2]] + vp21; 
+        v[[4]] = Vf[[2]] + vp22; 
+        v = bv + v; 
+
+        nn[l] = n;
+        uu[l] = u;
+        vv[l] = v;
+    ,{l,nro}];
+    Return[{nn,uu,vv}, Module];
+];
+ 
 chyqmom9[momin_, kk_, qmax_] := 
   Module[{moms = momin, ks = kk, vars, linsolv, mymom, n, csmall, 
     verysmall, bu, bv, d20, d11, d02, d30, d03, d40, d04, c20, c11, 
@@ -442,7 +512,7 @@ cqmom12m[moms_, ks_, nr_, nrd_]:=Module[{pm, mymom, eqns, vars, linsolv,
     Do[condmoms[i]=Re[LinearSolve[v.r1, ms[i]]], {i, 0, 2 nrd - 1}]; 
     Do[
         condmomvec[j]=Table[condmoms[i][[j]], {i, 0, 2 nrd - 1}]; 
-        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"]];
+        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nr}]; 
     Do[{xis[i], ws[i]} = wheeler[condmomvec[i], nrd], {i, nr}];
     Do[
@@ -466,11 +536,14 @@ cqmom12p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRs, xi, w, v,
         r1=DiagonalMatrix[w];
         Do[ms[m]=Table[mymom[i,m,l-1],{i,0,nr-1}],{m,0,2nrd-1}]; 
         Do[condmoms[i]=LinearSolve[v.r1,ms[i]],{i,0,2 nrd-1}]; 
-        Do[condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nrd-1}],{j,nr}]; 
+        Do[
+            condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nrd-1}];
+            If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+        ,{j,nr}]; 
         Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i],nrd],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{i,nrd},{j,nr}];
     ,{l,nro}]; 
-    Return[{wtot, xi, xis},Module];
+    Return[{wtot,xi,xis},Module];
 ];
 
 cqmom21m[moms_, ks_, nr_, nrd_] := Module[{pm, mymom, eqns, vars, 
@@ -486,7 +559,7 @@ cqmom21m[moms_, ks_, nr_, nrd_] := Module[{pm, mymom, eqns, vars,
     Do[condmoms[i] = Re[LinearSolve[v.r1, ms[i]]], {i, 0, 2 nr - 1}]; 
     Do[
         condmomvec[j] = Table[condmoms[i][[j]], {i, 0, 2 nr - 1}]; 
-        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];];
+        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nrd}]; 
     Do[{xis[i], ws[i]} = wheeler[condmomvec[i], nr], {i, nrd}];
     Do[wtot[j, i] = w[[j]] ws[j][[i]]; 
@@ -506,7 +579,10 @@ cqmom21p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRds, xi, w, v
         r1=DiagonalMatrix[w];
         Do[ms[i]=Table[mymom[i,j,l-1],{j,0,nrd-1}],{i,0,2nr-1}]; 
         Do[condmoms[i]=LinearSolve[v.r1,ms[i]],{i,0,2 nr-1}]; 
-        Do[condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nr-1}],{j,nrd}]; 
+        Do[
+            condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nr-1}];
+            If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+        ,{j,nrd}]; 
         Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i],nr],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{j,nrd},{i,nr}];
     ,{l,nro}]; 
