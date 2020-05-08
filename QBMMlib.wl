@@ -2,17 +2,12 @@
 
 BeginPackage["QBMMlib`"];
 
-pow::usage = "";
-wheeler::usage = "";
+(* TODO: Define usage of these functions *)
 momidx::usage = "";
+quad::usage="";
 cqmom12::usage = "";
 cqmom21::usage = "";
 chyqmom::usage = "";
-pointer::usage="";
-quad::usage="";
-(*project::usage = "";
-project1::usage = "";
-project2::usage = "";*)
 
 Begin["`Private`"];
 
