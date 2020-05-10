@@ -3,4 +3,5 @@ bak/*
 matlab/
 Ro_only/
 depricated/
+pyqbmm/
 .DS_store
