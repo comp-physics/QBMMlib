@@ -20,14 +20,25 @@ getterms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exp
     If[dim!=2&&dim!=3,Print["Incorrect dimesionallity ",dim];Abort[]];
     If[dim==2,vars={v[1],v[2]};{l,m}=idx;];
     If[dim==3,vars={v[1],v[2],v[3]};{l,m,n}=idx;];
+
     Do[v[i]=invars[[i]],{i,dim}];
     mrdd=v4/.Solve[eqn,v4][[1]];
+
     If[dim==2,integrand=mrdd v[1]^l v[2]^(m-1)];
     If[dim==3,integrand=mrdd v[1]^l v[2]^(m-1) v[3]^n];
+
     list=PowerExpand[List@@Distribute[integrand]];
-    exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
+    If[dim==2,
+        exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
+        (* Pad with a zero to make 3D *)
+        Do[AppendTo[exps[[i]],0],{i,Length[list]}];
+    ];
+    If[dim==3,exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}]];
     coefs=m Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
-    AppendTo[exps,{l-1,m+1,n}];
+
+    (* Add term that isn't in the integrand *)
+    If[dim==2,AppendTo[exps,{l-1,m+1,0}]];
+    If[dim==3,AppendTo[exps,{l-1,m+1,n}]];
     AppendTo[coefs,l];
     Return[{coefs,exps},Module];
 ];
