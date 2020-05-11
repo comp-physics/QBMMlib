@@ -8,11 +8,29 @@ quad::usage="";
 cqmom12::usage = "";
 cqmom21::usage = "";
 chyqmom::usage = "";
+getterms::usage="";
 
 Begin["`Private`"];
 
 pow[x_, 0] := 1 /; x == 0 || x == 0.
 pow[x_, y_: 0] := x^y
+
+getterms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
+    dim=Length[invars];
+    If[dim!=2&&dim!=3,Print["Incorrect dimesionallity ",dim];Abort[]];
+    If[dim==2,vars={v[1],v[2]};{l,m}=idx;];
+    If[dim==3,vars={v[1],v[2],v[3]};{l,m,n}=idx;];
+    Do[v[i]=invars[[i]],{i,dim}];
+    mrdd=v4/.Solve[eqn,v4][[1]];
+    If[dim==2,integrand=mrdd v[1]^l v[2]^(m-1)];
+    If[dim==3,integrand=mrdd v[1]^l v[2]^(m-1) v[3]^n];
+    list=PowerExpand[List@@Distribute[integrand]];
+    exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
+    coefs=m Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
+    AppendTo[exps,{l-1,m+1,n}];
+    AppendTo[coefs,l];
+    Return[{coefs,exps},Module];
+];
 
 quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp},
 	If[method=="CQMOM",
