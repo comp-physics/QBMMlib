@@ -9,6 +9,7 @@ cqmom12::usage = "";
 cqmom21::usage = "";
 chyqmom::usage = "";
 getterms::usage="";
+wheeler::usage="";
 
 Begin["`Private`"];
 
@@ -73,8 +74,8 @@ quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Modul
 		If[nro>0,
 			momc[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
 			momq[p_,q_,r_]:=Sum[wRos[[l]]Ros[[l]]^r momc[p,q,l],{l,nro}];
-			moms=Table[momq[ks[[i, 1]], ks[[i, 2]],ks[[i,3]]],{i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i, 1]], ksp[[i, 2]],ks[[i,3]]],{i,Length[ksp]}];
+			moms=Table[momq[ks[[i, 1]],ks[[i, 2]],ks[[i,3]]],{i,Length[ks]}]; 
+			momsp=Table[momq[ksp[[i, 1]],ksp[[i, 2]],ks[[i,3]]],{i,Length[ksp]}];
 		];
 	];
     (* moms and momsp are projected moments, momq is moment function (via quadrature) for any power pqr *)

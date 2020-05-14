@@ -4,4 +4,5 @@ matlab/
 Ro_only/
 depricated/
 pyqbmm/
+profiling/
 .DS_store
