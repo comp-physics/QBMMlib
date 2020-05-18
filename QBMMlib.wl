@@ -2,15 +2,48 @@
 
 BeginPackage["QBMMlib`"];
 
-(* TODO: Define usage of these functions *)
-momidx::usage = "";
-quad::usage="";
-cqmom12::usage = "";
-cqmom21::usage = "";
-chyqmom::usage = "";
-getterms::usage="";
-wheeler::usage="";
-pow::usage="";
+momidx::usage = "
+    momidx[nr,nrd,method,numperm,nro] computes the moments required by the 'method' (CQMOM or CHyQMOM) for a given number of nodes in the first, second, and third coordinate directions nr, nrd, and nro. 
+    Extra moments are included if the number of permuations, 'numperm', requires it.
+    Constraints: CHyQMOM requires nr=nrd and nr=2 or 3. 
+    CQMOM does not have these constraints.
+";
+
+quad::usage="
+    quad[w,xi,xis,method,nr,nrd,ks,perm,nro,wRos,Ros] computes the moments $M_{lmn} = \int x^l y^m z^n P dx dy dz$ with indices 'ks = {l,m,n}' via the weights 'w' and quadrature points in the first 'xi' and second 'xis' coordinate directions.
+    An optional third coordinate direction Ro can be included, which has 'nro' number of nodes with weights 'wRos' and abscissa 'Ros'.
+    Thus, 'nro', 'wRos', and 'Ros' are optional arguments.
+    'perm' corresponds to the permutation ordering (12: v1 | v2) or (21: v2 | v1), which switches which abscissa are considered the first direction 'xi' versus 'xis'.
+    The 'method' input takes either 'CQMOM' or 'CHyQMOM', though the operations performed are essentially identical.
+";
+
+cqmom::usage = "
+    cqmom[perm,mom,ks,nr,nrd,nro,wro,ro] performs moment inversion for the optimal weights and abscissa as computed by the CQMOM algorithm [Yuan & Fox, JCP 2011].
+    The input moments are 'mom', which correspond to moment indices 'ks'. 
+    'perm' is the permutation [=12 for v1 | v2 or = 21 for v2 | v1].
+    'nr' and 'nrd' are the number of nodes in the first and second internal coordinate directions.
+    A third, static distribution can optionally be included via its number of quadrature points 'nro' and their locations 'ro' and weights 'wro'.
+";
+
+chyqmom::usage = "
+    chyqmom[mom,k,q,wRo,Ros] performs moment inversion for the optimal weights and abscissa as computed by the CHyQMOM algorithm [Fox et al., JCP 2018; Patel et al., JCPX 2019].
+    The input moments are 'mom', which correspond to moment indices 'k'. 
+    For three-node closure in any of the coordinate directions (e.g. nr=3 or nrd=3), an optional parameter 'q' is available to limit the amount of skewness that direction. 
+    A third, static distribution can optionally be included via its number of quadrature points nro and their locations 'ro' and weights 'wro'.
+";
+
+getterms::usage="
+    getterms[eqn,invars,v4,idx] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
+    'eqn' is the governing ODE, 'invars' are the internal coordinates, 'v4' is the acceleration term, and 'idx' are the indices.
+";
+
+wheeler::usage="
+    wheeler[m,n] computes the one-dimensional optimal weights and abscissa given moments 'm' of length 'n' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
+";
+
+pow::usage="
+    pow[x,y] returns x^y where x^0 = 0, even if x=0
+";
 
 Begin["`Private`"];
 
@@ -45,7 +78,7 @@ getterms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exp
     Return[{coefs,exps},Module];
 ];
 
-quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp},
+quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,perm_,nro_:0,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp},
 	If[method=="CQMOM",
 		If[nro==0,
 			If[perm==12,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^p xis[j][[i]]^q,{j,nr},{i,nrd}]];
@@ -90,16 +123,16 @@ quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Modul
 	Return[{moms,momq},Module];
 ];
 
-wheeler[m_, n_] := Module[{nn = n, mm = m, \[Sigma], a, b, Ja, w, xi, eval, evec, esys}, 
-    \[Sigma] = Table[0., {i, 2 nn}, {j, 2 nn}]; 
-    Do[\[Sigma][[2, i + 1]] = mm[[i + 1]], {i, 0, 2 nn - 1}]; 
+wheeler[m_, n_] := Module[{nn = n, mm = m, sig, a, b, Ja, w, xi, eval, evec, esys}, 
+    sig = Table[0., {i, 2 nn}, {j, 2 nn}]; 
+    Do[sig[[2, i + 1]] = mm[[i + 1]], {i, 0, 2 nn - 1}]; 
     a = Table[0., {i, nn}]; b = a; a[[1]] = mm[[2]]/mm[[1]]; 
     b[[1]] = 0; 
     Do[
         Do[
-            \[Sigma][[i + 2, j + 1]] = \[Sigma][[i + 1, j + 2]] - a[[i]] \[Sigma][[i + 1, j + 1]] - b[[i]] \[Sigma][[i, j + 1]];
-            a[[i + 1]] = -(\[Sigma][[i + 1, i + 1]]/\[Sigma][[i + 1, i]]) + \[Sigma][[i + 2, i + 2]]/\[Sigma][[i + 2, i + 1]]; 
-            b[[i + 1]] = \[Sigma][[i + 2, i + 1]]/\[Sigma][[i + 1, i]];
+            sig[[i + 2, j + 1]] = sig[[i + 1, j + 2]] - a[[i]] sig[[i + 1, j + 1]] - b[[i]] sig[[i, j + 1]];
+            a[[i + 1]] = -(sig[[i + 1, i + 1]]/sig[[i + 1, i]]) + sig[[i + 2, i + 2]]/sig[[i + 2, i + 1]]; 
+            b[[i + 1]] = sig[[i + 2, i + 1]]/sig[[i + 1, i]];
         ,{j,i, 2 nn - i - 1}];
     ,{i,nn - 1}];
     Ja = DiagonalMatrix[a]; 
@@ -532,16 +565,18 @@ hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
     Return[{n, u}, Module];
 ];
     
-cqmom12[moms_, ks_, nr_, nrd_, nro_:0,wro_:0,ro_:0] := Module[{},
-    If[Length[ks[[1]]] == 2,Return[cqmom12m[moms, ks, nr, nrd], Module]]; 
-    If[Length[ks[[1]]] == 3,Return[cqmom12p[moms,ks,nr,nrd,nro,wro,ro], Module]];
+cqmom[perm_, moms_, ks_, nr_, nrd_, nro_:0,wro_:0,ro_:0] := Module[{},
+    If[perm==12,
+        If[Length[ks[[1]]] == 2,Return[cqmom12m[moms, ks, nr, nrd], Module]]; 
+        If[Length[ks[[1]]] == 3,Return[cqmom12p[moms,ks,nr,nrd,nro,wro,ro], Module]];
+    ];
+    If[perm==21,
+        If[Length[ks[[1]]] == 2,Return[cqmom21m[moms, ks, nr, nrd], Module]]; 
+        If[Length[ks[[1]]] == 3,Return[cqmom21p[moms, ks, nr, nrd, nro,wro,ro], Module]];
+    ];
+    Print["Error!"];
 ];
 
-cqmom21[moms_, ks_, nr_, nrd_, nro_:0,wro_:0,ro_:0] := Module[{}, 
-    If[Length[ks[[1]]] == 2,Return[cqmom21m[moms, ks, nr, nrd], Module]]; 
-    If[Length[ks[[1]]] == 3,Return[cqmom21p[moms, ks, nr, nrd, nro,wro,ro], Module]];
-];
-    
 cqmom12m[moms_, ks_, nr_, nrd_]:=Module[{pm, mymom, eqns, vars, linsolv, 
     mRs, xi, w, v, r1, ms, 
     condmoms, condmomvec, mout, xis, ws, wtot}, 
@@ -662,7 +697,7 @@ vander[x_,q_]:=Module[{n,w,b,s,t,xx,c},
 ];
 
 adaptwheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
-    eabs=10^-10,\[Sigma],a,b,Ja,w,x,xi,eval,evec,esys,myn,ind,nu,
+    eabs=10^-10,sig,a,b,Ja,w,x,xi,eval,evec,esys,myn,ind,nu,
     nout,cutoff,dab,mab,bmin,z,mindab,maxmab},
     (* rmin is minimum ratio wmin/wmax *)
     (* eabs is minimum distance between distinct abscissas *)
@@ -689,22 +724,22 @@ adaptwheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
     ind=nn;
     a=Table[0.,{i,ind}];
     b=Table[0.,{i,ind}];
-    \[Sigma]=Table[0.,{i,2ind+1},{j,2ind+1}];
+    sig=Table[0.,{i,2ind+1},{j,2ind+1}];
     Do[
-        \[Sigma][[2,i]]=nu[[i-1]];
+        sig[[2,i]]=nu[[i-1]];
     ,{i,2,2ind+1}];
     a[[1]]=nu[[2]]/nu[[1]];
     b[[1]]=0;
     Do[
-        Do[\[Sigma][[k,l]]=\[Sigma][[k-1,l+1]]-a[[k-2]]\[Sigma][[k-1,l]]-b[[k-2]]\[Sigma][[k-2,l]],{l,k,2ind-k+3}];
-        a[[k-1]]=\[Sigma][[k,k+1]]/\[Sigma][[k,k]]-\[Sigma][[k-1,k]]/\[Sigma][[k-1,k-1]];
-        b[[k-1]]=\[Sigma][[k,k]]/\[Sigma][[k-1,k-1]];
+        Do[sig[[k,l]]=sig[[k-1,l+1]]-a[[k-2]]sig[[k-1,l]]-b[[k-2]]sig[[k-2,l]],{l,k,2ind-k+3}];
+        a[[k-1]]=sig[[k,k+1]]/sig[[k,k]]-sig[[k-1,k]]/sig[[k-1,k-1]];
+        b[[k-1]]=sig[[k,k]]/sig[[k-1,k-1]];
     ,{k,3,ind+1}];
     (* Determine maximum n using diag elements of sig *)
     myn=nn;
     Do[
         If[
-            \[Sigma][[k,k]]<=cutoff,
+            sig[[k,k]]<=cutoff,
             myn=k-2;
             If[
                 myn==1,
@@ -720,14 +755,14 @@ adaptwheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
     b=Table[0,{i,myn}];
     w=Table[0,{i,myn}];
     x=Table[0,{i,myn}];
-    \[Sigma]=Table[0,{i,2 myn+1},{j,2myn+1}];
-    Do[\[Sigma][[2,i]]=nu[[i-1]],{i,2,2 myn+1}];
+    sig=Table[0,{i,2 myn+1},{j,2myn+1}];
+    Do[sig[[2,i]]=nu[[i-1]],{i,2,2 myn+1}];
     a[[1]]=nu[[2]]/nu[[1]];
     b[[1]]=0.;
     Do[
-        Do[\[Sigma][[k,l]]=\[Sigma][[k-1,l+1]]-a[[k-2]] \[Sigma][[k-1,l]]-b[[k-2]] \[Sigma][[k-2,l]],{l,k,2 myn-k+3}];
-        a[[k-1]]=\[Sigma][[k,k+1]]/\[Sigma][[k,k]]-\[Sigma][[k-1,k]]/\[Sigma][[k-1,k-1]];
-        b[[k-1]]=\[Sigma][[k,k]]/\[Sigma][[k-1,k-1]];
+        Do[sig[[k,l]]=sig[[k-1,l+1]]-a[[k-2]] sig[[k-1,l]]-b[[k-2]] sig[[k-2,l]],{l,k,2 myn-k+3}];
+        a[[k-1]]=sig[[k,k+1]]/sig[[k,k]]-sig[[k-1,k]]/sig[[k-1,k-1]];
+        b[[k-1]]=sig[[k,k]]/sig[[k-1,k-1]];
     ,{k,3,myn+1}];
     (* Check if moments are not realizable (should never happen) *)
     bmin=Min[b];
