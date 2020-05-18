@@ -10,6 +10,7 @@ cqmom21::usage = "";
 chyqmom::usage = "";
 getterms::usage="";
 wheeler::usage="";
+pow::usage="";
 
 Begin["`Private`"];
 
@@ -47,39 +48,46 @@ getterms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exp
 quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,ksp_,perm_:0,nro_:0,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp},
 	If[method=="CQMOM",
 		If[nro==0,
-			If[perm==12,momq[p_,q_]:=Sum[w[j,i]xi[[j]]^p xis[j][[i]]^q,{j,nr},{i,nrd}]];
-			If[perm==21,momq[p_,q_]:=Sum[w[j,i]xi[[j]]^q xis[j][[i]]^p,{j,nrd},{i,nr}]];
-			moms=Table[momq[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i, 1]], ksp[[i, 2]]], {i,Length[ksp]}];
+			If[perm==12,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^p xis[j][[i]]^q,{j,nr},{i,nrd}]];
+			If[perm==21,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^q xis[j][[i]]^p,{j,nrd},{i,nr}]];
+			moms=Table[momq[ks[[i,1]],ks[[i,2]]], {i,Length[ks]}]; 
+			(* momsp=Table[momq[ksp[[i,1]],ksp[[i,2]]], {i,Length[ksp]}]; *)
 		];
 		If[nro>0,
 			If[perm==12,
-				momc[p_,q_,l_]:=Sum[w[l][j,i]xi[l][[j]]^p xis[l][j][[i]]^q,{i,nrd},{j,nr}];
-				momq[p_,q_,r_]:=Sum[wRos[[l]]Ros[[l]]^r momc[p,q,l],{l,nro}];
+				momq[p_,q_,l_]:=Sum[w[l][j,i] xi[l][[j]]^p xis[l][j][[i]]^q,{i,nrd},{j,nr}];
 			];
 			If[perm==21,
-				momc[p_,q_,l_]:=Sum[w[l][j,i]xi[l][[j]]^q xis[l][j][[i]]^p,{i,nr},{j,nrd}];
-				momq[p_,q_,r_]:=Sum[wRos[[l]]Ros[[l]]^r momc[p,q,l],{l,nro}];
+				momq[p_,q_,l_]:=Sum[w[l][j,i] xi[l][[j]]^q xis[l][j][[i]]^p,{i,nr},{j,nrd}];
 			];
-			moms=Table[momq[ks[[i, 1]], ks[[i, 2]],ks[[i,3]]],{i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i, 1]], ksp[[i, 2]],ks[[i,3]]],{i,Length[ksp]}];
+			moms=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ks]}]; 
+			(* momsp=Table[momq[ksp[[i,1]],ksp[[i,2]],ks[[i,3]]],{i,Length[ksp]}]; *)
 		];
 	];
 	If[method=="CHyQMOM",
 		If[nro==0,
 			momq[p_,q_]:=Sum[w[[i]]xi[[i]]^p xis[[i]]^q,{i,Length[w]}];
-			moms=Table[momq[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i, 1]], ksp[[i, 2]]], {i,Length[ksp]}];
+			moms=Table[momq[ks[[i,1]],ks[[i,2]]], {i,Length[ks]}]; 
+			momsp=Table[momq[ksp[[i,1]],ksp[[i,2]]],{i,Length[ksp]}];
 		];
 		If[nro>0,
-			momc[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
+            (* gets full moments  *)
+			(* 
+            momc[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
 			momq[p_,q_,r_]:=Sum[wRos[[l]]Ros[[l]]^r momc[p,q,l],{l,nro}];
-			moms=Table[momq[ks[[i, 1]],ks[[i, 2]],ks[[i,3]]],{i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i, 1]],ksp[[i, 2]],ks[[i,3]]],{i,Length[ksp]}];
+			moms=Table[momq[ks[[i,1]],ks[[i,2]],ks[[i,3]]],{i,Length[ks]}]; 
+			momsp=Table[momq[ksp[[i,1]],ksp[[i,2]],ks[[i,3]]],{i,Length[ksp]}];
+            *) 
+
+            (* get conditioned on R_o,l moments, +1 included on last index to promote 0 -> 1 *)
+			momq[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
+			moms=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ks]}]; 
+            (* these are no longer computable/correct. need to compute them after the fact *)
+			(* momsp=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ksp]}];  *)
 		];
 	];
     (* moms and momsp are projected moments, momq is moment function (via quadrature) for any power pqr *)
-	Return[{moms,momsp,momq},Module];
+	Return[{moms,momq},Module];
 ];
 
 wheeler[m_, n_] := Module[{nn = n, mm = m, \[Sigma], a, b, Ja, w, xi, eval, evec, esys}, 
@@ -117,8 +125,12 @@ momidx[nr_, nrd_, method_, numperm_: 2, nro_: 0] := Module[{ks, k1, k2,kstemp},
             ];
         ]; 
         If[nr == 3, 
-            ks = {{0, 0}, {1, 0}, {0, 1}, {2, 0}, {1, 1}, {0, 2}, {3, 0}, {0,3}, {4, 0}, {0, 4}}
-            (* TODO: Add support for Ro polydispersity here *)
+            If[
+                nro == 0, 
+                ks = {{0, 0}, {1, 0}, {0, 1}, {2, 0}, {1, 1}, {0, 2}, {3, 0}, {0,3}, {4, 0}, {0, 4}}
+            ,
+                ks = Flatten[Table[{{0, 0, i}, {1, 0, i}, {0, 1, i}, {2, 0, i}, {1, 1, i}, {0, 2, i}, {3, 0, i}, {0,3, i}, {4, 0, i}, {0, 4, i}}, {i,0,nro-1}],1];
+            ];
         ]; 
     ]; 
     If[method == "CQMOM", 
@@ -148,7 +160,7 @@ momidx[nr_, nrd_, method_, numperm_: 2, nro_: 0] := Module[{ks, k1, k2,kstemp},
     Return[ks, Module];
 ];
       
-pointer[moms_,ks_,w_:0,ro_:0] := Module[{eqns, vars, linsolv, pm, mymom}, 
+pointer[moms_,ks_,w_:0,ro_:0,3dtype_:"static"] := Module[{eqns, vars, linsolv, pm, mymom}, 
     If[
         Length[ks[[1]]] == 2, 
         eqns = Table[moms[[i]] == pm[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]; 
@@ -160,9 +172,16 @@ pointer[moms_,ks_,w_:0,ro_:0] := Module[{eqns, vars, linsolv, pm, mymom},
     If[
         Length[ks[[1]]] == 3,
         (* converts vector of total moments m_lmn to conditioned moments m_lm @ each R_o,k  *)
-        eqns = Table[moms[[i]] == Sum[ w[[l + 1]] ro[[l + 1]]^ks[[i, 3]] pm[ks[[i, 1]], ks[[i, 2]], l], {l,0,Length[ro]-1}], {i,Length[ks]}]; 
+        (* eqns = Table[moms[[i]] == Sum[ w[[l + 1]] ro[[l + 1]]^ks[[i, 3]] pm[ks[[i, 1]], ks[[i, 2]], l], {l,0,Length[ro]-1}], {i,Length[ks]}]; 
         vars = DeleteDuplicates[Flatten[Table[pm[ks[[i, 1]], ks[[i, 2]], l], {l,0,Length[ro]-1},{i,Length[ks]}]]]; 
         linsolv = First[vars/.Solve[eqns, vars]]; 
+        mymom[q_, p_, r_] := linsolv[[First[First[Position[ks,{q,p,r}]]]]]; 
+        *)
+
+        (* just tells you where to find each moments {qp,k}}, for each R_o,k  *)
+        eqns = Table[moms[[i]] == pm[ks[[i, 1]], ks[[i, 2]], ks[[i, 3]]], {i,Length[ks]}]; 
+        vars = DeleteDuplicates[ Flatten[Table[pm[ks[[i, 1]], ks[[i, 2]], ks[[i, 3]]], {i,Length[ks]}]]];
+        linsolv = First[vars/.Solve[eqns, vars]];
         mymom[q_, p_, r_] := linsolv[[First[First[Position[ks,{q,p,r}]]]]]; 
         Return[mymom, Module];
     ]; 
