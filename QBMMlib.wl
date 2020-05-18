@@ -160,7 +160,7 @@ momidx[nr_, nrd_, method_, numperm_: 2, nro_: 0] := Module[{ks, k1, k2,kstemp},
     Return[ks, Module];
 ];
       
-pointer[moms_,ks_,w_:0,ro_:0,3dtype_:"static"] := Module[{eqns, vars, linsolv, pm, mymom}, 
+pointer[moms_,ks_,w_:0,ro_:0] := Module[{eqns, vars, linsolv, pm, mymom}, 
     If[
         Length[ks[[1]]] == 2, 
         eqns = Table[moms[[i]] == pm[ks[[i, 1]], ks[[i, 2]]], {i,Length[ks]}]; 
