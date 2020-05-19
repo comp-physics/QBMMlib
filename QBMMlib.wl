@@ -2,6 +2,15 @@
 
 BeginPackage["QBMMlib`"];
 
+pow::usage="
+    pow[x,y] returns x^y where x^0 = 1, even if x=0
+";
+
+getterms::usage="
+    getterms[eqn,invars,v4,idx] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
+    'eqn' is the governing ODE, 'invars' are the internal coordinates, 'v4' is the acceleration term, and 'idx' are the indices.
+";
+
 momidx::usage = "
     momidx[nr,nrd,method,numperm,nro] computes the moments required by the 'method' (CQMOM or CHyQMOM) for a given number of nodes in the first, second, and third coordinate directions nr, nrd, and nro. 
     Extra moments are included if the number of permuations, 'numperm', requires it.
@@ -10,7 +19,7 @@ momidx::usage = "
 ";
 
 quad::usage="
-    quad[w,xi,xis,method,nr,nrd,ks,perm,nro,wRos,Ros] computes the moments $M_{lmn} = \int x^l y^m z^n P dx dy dz$ with indices 'ks = {l,m,n}' via the weights 'w' and quadrature points in the first 'xi' and second 'xis' coordinate directions.
+    quad[w,xi,xis,method,nr,nrd,ks,perm,nro,wRos,Ros] computes the moments M_{lmn} = int[x^l y^m z^n P dx dy dz] with indices 'ks = {l,m,n}' via the weights 'w' and quadrature points in the first 'xi' and second 'xis' coordinate directions.
     An optional third coordinate direction Ro can be included, which has 'nro' number of nodes with weights 'wRos' and abscissa 'Ros'.
     Thus, 'nro', 'wRos', and 'Ros' are optional arguments.
     'perm' corresponds to the permutation ordering (12: v1 | v2) or (21: v2 | v1), which switches which abscissa are considered the first direction 'xi' versus 'xis'.
@@ -30,19 +39,6 @@ chyqmom::usage = "
     The input moments are 'mom', which correspond to moment indices 'k'. 
     For three-node closure in any of the coordinate directions (e.g. nr=3 or nrd=3), an optional parameter 'q' is available to limit the amount of skewness that direction. 
     A third, static distribution can optionally be included via its number of quadrature points nro and their locations 'ro' and weights 'wro'.
-";
-
-getterms::usage="
-    getterms[eqn,invars,v4,idx] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
-    'eqn' is the governing ODE, 'invars' are the internal coordinates, 'v4' is the acceleration term, and 'idx' are the indices.
-";
-
-wheeler::usage="
-    wheeler[m,n] computes the one-dimensional optimal weights and abscissa given moments 'm' of length 'n' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
-";
-
-pow::usage="
-    pow[x,y] returns x^y where x^0 = 0, even if x=0
 ";
 
 Begin["`Private`"];
@@ -78,7 +74,8 @@ getterms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exp
     Return[{coefs,exps},Module];
 ];
 
-quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,perm_,nro_:0,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp},
+quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,perm_,wRos_:0,Ros_:0]:=Module[{momq,momc,moms,momsp,nro},
+    nro=Length[wRos];
 	If[method=="CQMOM",
 		If[nro==0,
 			If[perm==12,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^p xis[j][[i]]^q,{j,nr},{i,nrd}]];
@@ -123,8 +120,13 @@ quad[w_,xi_,xis_,method_,nr_,nrd_,ks_,perm_,nro_:0,wRos_:0,Ros_:0]:=Module[{momq
 	Return[{moms,momq},Module];
 ];
 
-wheeler[m_, n_] := Module[{nn = n, mm = m, sig, a, b, Ja, w, xi, eval, evec, esys}, 
+(* wheeler::usage="
+    wheeler[mom] computes the one-dimensional optimal weights and abscissa given moments 'mom' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
+"; *)
+wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys}, 
+    nn=Length[mm]/2;
     sig = Table[0., {i, 2 nn}, {j, 2 nn}]; 
+
     Do[sig[[2, i + 1]] = mm[[i + 1]], {i, 0, 2 nn - 1}]; 
     a = Table[0., {i, nn}]; b = a; a[[1]] = mm[[2]]/mm[[1]]; 
     b[[1]] = 0; 
@@ -582,7 +584,7 @@ cqmom12m[moms_, ks_, nr_, nrd_]:=Module[{pm, mymom, eqns, vars, linsolv,
     condmoms, condmomvec, mout, xis, ws, wtot}, 
     mymom=pointer[moms, ks]; 
     mRs=Table[mymom[i,0], {i,0,2nr-1}]; 
-    {xi,w}=wheeler[mRs, nr]; 
+    {xi,w}=wheeler[mRs]; 
     v=Table[Table[xi[[i]]^j,{i,nr}],{j,0,nr-1}]; 
     r1=DiagonalMatrix[w]; 
     Do[ms[i]=Table[mymom[j, i], {j, 0, nr - 1}], {i, 0, 2 nrd - 1}]; 
@@ -591,7 +593,7 @@ cqmom12m[moms_, ks_, nr_, nrd_]:=Module[{pm, mymom, eqns, vars, linsolv,
         condmomvec[j]=Table[condmoms[i][[j]], {i, 0, 2 nrd - 1}]; 
         If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nr}]; 
-    Do[{xis[i], ws[i]} = wheeler[condmomvec[i], nrd], {i, nr}];
+    Do[{xis[i], ws[i]} = wheeler[condmomvec[i]], {i, nr}];
     Do[
         wtot[j,i]=w[[j]] ws[j][[i]]; 
         If[
@@ -608,7 +610,7 @@ cqmom12p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRs, xi, w, v,
 	mymom=pointer[moms,ks,wRos,Ros]; 
 	Do[
         mRs=Table[mymom[i,0,l-1],{i,0,2nr-1}];
-        {xi[l],w}=wheeler[mRs, nr]; 
+        {xi[l],w}=wheeler[mRs]; 
         v=Table[Table[xi[l][[i]]^j,{i,nr}],{j,0,nr-1}]; 
         r1=DiagonalMatrix[w];
         Do[ms[m]=Table[mymom[i,m,l-1],{i,0,nr-1}],{m,0,2nrd-1}]; 
@@ -617,7 +619,7 @@ cqmom12p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRs, xi, w, v,
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nrd-1}];
             If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
         ,{j,nr}]; 
-        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i],nrd],{i,nr}]; 
+        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i]],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{i,nrd},{j,nr}];
     ,{l,nro}]; 
     Return[{wtot,xi,xis},Module];
@@ -629,7 +631,7 @@ cqmom21m[moms_, ks_, nr_, nrd_] := Module[{pm, mymom, eqns, vars,
     mymom = pointer[moms, ks]; 
     mRds = Table[mymom[0, i], {i, 0, 2 nrd - 1}]; 
     If[Norm[Im[mRds]] > 0, Print["Imag momvec 2"]]; 
-    {xi, w} = wheeler[mRds, nrd]; 
+    {xi, w} = wheeler[mRds]; 
     v = Table[Table[xi[[i]]^j, {i, 1, nrd}], {j, 0, nrd - 1}]; 
     r1 = DiagonalMatrix[w]; 
     Do[ms[i] = Table[mymom[i, j], {j, 0, nrd - 1}], {i, 0, 2 nr - 1}]; 
@@ -638,7 +640,7 @@ cqmom21m[moms_, ks_, nr_, nrd_] := Module[{pm, mymom, eqns, vars,
         condmomvec[j] = Table[condmoms[i][[j]], {i, 0, 2 nr - 1}]; 
         If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nrd}]; 
-    Do[{xis[i], ws[i]} = wheeler[condmomvec[i], nr], {i, nrd}];
+    Do[{xis[i], ws[i]} = wheeler[condmomvec[i]], {i, nrd}];
     Do[wtot[j, i] = w[[j]] ws[j][[i]]; 
         If[Re[wtot[j, i]] < 0 || Im[wtot[j, i]] != 0, 
         Print["Negative weights"]; Abort[];];
@@ -651,7 +653,7 @@ cqmom21p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRds, xi, w, v
 	mymom=pointer[moms,ks,wRos,Ros]; 
 	Do[
         mRds=Table[mymom[0,i,l-1],{i,0,2nrd-1}];
-        {xi[l],w}=wheeler[mRds, nr]; 
+        {xi[l],w}=wheeler[mRds]; 
         v=Table[Table[xi[l][[i]]^j, {i,nrd}],{j,0,nrd-1}]; 
         r1=DiagonalMatrix[w];
         Do[ms[i]=Table[mymom[i,j,l-1],{j,0,nrd-1}],{i,0,2nr-1}]; 
@@ -660,7 +662,7 @@ cqmom21p[moms_, ks_, nr_, nrd_, nro_,wRos_,Ros_] :=Module[{mymom, mRds, xi, w, v
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nr-1}];
             If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
         ,{j,nrd}]; 
-        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i],nr],{i,nr}]; 
+        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i]],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{j,nrd},{i,nr}];
     ,{l,nro}]; 
     Return[{wtot, xi, xis}, Module];
