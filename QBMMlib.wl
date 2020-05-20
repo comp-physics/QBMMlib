@@ -337,6 +337,127 @@ chyqmom4p[momin_,kk_,wRo_,Ros_] := Module[{moms = momin, ks = kk, eqns, vars, li
     Return[{nn,uu,vv}, Module];
 ];
  
+
+chyqmom9p[momin_, kk_, qmax_, wRo_, Ros_] := 
+  Module[{moms = momin, ks = kk, vars, linsolv, mymom, n, csmall, 
+    verysmall, bu, bv, d20, d11, d02, d30, d03, d40, d04, c20, c11, 
+    c02, c30, c03, c40, c04, M1, rho, up, Vf, M2, rho2, up2, vp21, 
+    vp22, vp23, rho21, rho22, rho23, mu2avg, mu2, mu3, mu4, u, v, 
+    eqns, pm, q, eta, slope, det, qm, qp, up3, M3, rh3, nro, nn, uu, vv}, 
+
+    nro = Length[wRo];
+    mymom = pointer[moms, ks, wRo, Ros]; 
+
+    Do[
+        n = Table[0, {i, 9}]; u = n; v = n; 
+        csmall = 10^(-10); 
+        verysmall = 10^(-14); 
+        bu =  mymom[1, 0,l-1]/mymom[0, 0,l-1]; 
+        bv =  mymom[0, 1,l-1]/mymom[0, 0,l-1]; 
+        d20 = mymom[2, 0,l-1]/mymom[0, 0,l-1]; 
+        d11 = mymom[1, 1,l-1]/mymom[0, 0,l-1]; 
+        d02 = mymom[0, 2,l-1]/mymom[0, 0,l-1]; 
+        d30 = mymom[3, 0,l-1]/mymom[0, 0,l-1]; 
+        d03 = mymom[0, 3,l-1]/mymom[0, 0,l-1]; 
+        d40 = mymom[4, 0,l-1]/mymom[0, 0,l-1]; 
+        d04 = mymom[0, 4,l-1]/mymom[0, 0,l-1]; 
+        c20 = d20 - bu^2; 
+        c11 = d11 - bu bv;
+        c02 = d02 - bv^2; 
+        c30 = d30 - 3 bu d20 + 2 bu^3; 
+        c03 = d03 - 3 bv d02 + 2 bv^3; 
+        c40 = d40 - 4 bu d30 + 6 bu^2 d20 - 3 bu^4; 
+        c04 = d04 - 4 bv d03 + 6 bv^2 d02 - 3 bv^4; 
+        M1 = {1, 0, c20, c30, c40}; 
+        {rho, up} = hyqmom[M1]; 
+        If[c20 <= csmall, 
+            rho[[1]] = 0; 
+            rho[[2]] = 1; 
+            rho[[3]] = 0; 
+            Vf = 0 up; 
+            M2 = {1, 0, c02, c03, c04}; 
+            {rho2, up2} = hyqmom[M2, qmax]; 
+            vp21 = up2[[1]]; 
+            vp22 = up2[[2]]; 
+            vp23 = up2[[3]]; 
+            rho21 = rho2[[1]]; 
+            rho22 = rho2[[2]]; 
+            rho23 = rho2[[3]];
+        , 
+            Vf = c11 up/c20; 
+            mu2avg = c02 - Total[rho Vf^2]; 
+            mu2avg = Max[mu2avg, 0]; 
+            mu2 = mu2avg; 
+            mu3 = 0 mu2; 
+            mu4 = mu2^2; 
+            If[mu2 > csmall, 
+                q = (c03 - Total[rho Vf^3])/mu2^(3/2); 
+                eta = (c04 - Total[rho Vf^4] - 6 Total[rho Vf^2] mu2)/mu2^2; 
+                If[eta < q^2 + 1, 
+                    If[Abs[q] > verysmall, 
+                        slope = (eta - 3)/q; 
+                        det = 8 + slope^2; 
+                        qp = 0.5 (slope + Sqrt[det]); 
+                        qm = 0.5 (slope - Sqrt[det]); 
+                        If[Sign[q] == 1, q = qp, q = qm];
+                    , 
+                        q = 0
+                    ]; 
+                    eta = q^2 + 1;
+                ]; 
+                mu3 = q mu2^(3/2); 
+                mu4 = eta mu2^2;
+            ]; 
+            M3 = {1, 0, mu2, mu3, mu4}; 
+            {rh3, up3} = hyqmom[M3, qmax]; 
+            vp21 = up3[[1]]; 
+            vp22 = up3[[2]]; 
+            vp23 = up3[[3]]; 
+            rho21 = rh3[[1]]; 
+            rho22 = rh3[[2]]; 
+            rho23 = rh3[[3]];
+        ]; 
+
+        n[[1]] = rho[[1]] rho21; 
+        n[[2]] = rho[[1]] rho22; 
+        n[[3]] = rho[[1]] rho23; 
+        n[[4]] = rho[[2]] rho21; 
+        n[[5]] = rho[[2]] rho22; 
+        n[[6]] = rho[[2]] rho23; 
+        n[[7]] = rho[[3]] rho21; 
+        n[[8]] = rho[[3]] rho22; 
+        n[[9]] = rho[[3]] rho23; 
+        n = mymom[0, 0, l-1] n; 
+
+        u[[1]] = up[[1]]; 
+        u[[2]] = up[[1]];
+        u[[3]] = up[[1]]; 
+        u[[4]] = up[[2]]; 
+        u[[5]] = up[[2]];
+        u[[6]] = up[[2]];
+        u[[7]] = up[[3]]; 
+        u[[8]] = up[[3]];
+        u[[9]] = up[[3]]; 
+        u = bu + u; 
+
+        v[[1]] = Vf[[1]] + vp21; 
+        v[[2]] = Vf[[1]] + vp22; 
+        v[[3]] = Vf[[1]] + vp23; 
+        v[[4]] = Vf[[2]] + vp21; 
+        v[[5]] = Vf[[2]] + vp22;
+        v[[6]] = Vf[[2]] + vp23; 
+        v[[7]] = Vf[[3]] + vp21;
+        v[[8]] = Vf[[3]] + vp22; 
+        v[[9]] = Vf[[3]] + vp23; 
+        v = bv + v; 
+
+        nn[l] = n;
+        uu[l] = u;
+        vv[l] = v;
+    ,{l,nro}];
+    Return[{nn,uu,vv}, Module];
+];
+
 chyqmom9[momin_, kk_, qmax_] := 
   Module[{moms = momin, ks = kk, vars, linsolv, mymom, n, csmall, 
     verysmall, bu, bv, d20, d11, d02, d30, d03, d40, d04, c20, c11, 
