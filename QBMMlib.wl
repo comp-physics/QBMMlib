@@ -41,6 +41,8 @@ chyqmom::usage = "
     A third, static distribution can optionally be included via its number of quadrature points nro and their locations 'ro' and weights 'wro'.
 ";
 
+wheeler::usage=""
+
 Begin["`Private`"];
 
 pow[x_, 0] := 1 /; x == 0 || x == 0.
