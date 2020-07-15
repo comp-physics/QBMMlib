@@ -186,19 +186,24 @@ Wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys},
     Return[{eval, w}, Module];
 ];
 
-MomentIndex[n_, method_, numperm_: 2] := Module[{ks, k1, k2, kstemp, nr, nrd, nro}, 
-    If[Length[n]==1,
-        nr  = n[[1]];
+MomentIndex[n_, method_, numperm_: 2] := Module[{ks, k1, k2, kstemp, nr, nrd, nro, dim}, 
+   
+    If[IntegerQ[n[1]],dim=1];
+    If[IntegerQ[n[2]],dim=2];
+    If[IntegerQ[n[3]],dim=3];
+
+    If[dim==1,
+        nr  = n[1];
     ];
-    If[Length[n]==2,
-        nr  = n[[1]];
-        nrd = n[[2]];
+    If[dim==2,
+        nr  = n[1];
+        nrd = n[2];
         nro = 0;
     ];
-    If[Length[n]==3,
-        nr  = n[[1]];
-        nrd = n[[2]];
-        nro = n[[3]];
+    If[dim==3,
+        nr  = n[1];
+        nrd = n[2];
+        nro = n[3];
     ];
     If[method == "QMOM" || method == "AQMOM",
         ks = Table[{i},{i,0,2 nr - 1}]; 
