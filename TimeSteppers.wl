@@ -3,18 +3,18 @@
 BeginPackage["TimeSteppers`"];
 
 RK23  ::usage="";
-RK23nb::usage="";
 
 Begin["`Private`"];
 
 err[fine_,coarse_]:=Norm[fine-coarse]/Norm[fine];
 
-RK23[mom_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,rhs,error},
+RK23[mom_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,rhs},
 	(* SSP-RK2 *)
 	{moms,rhs}=myrhs[moms,t];
 	momstemp1=moms+dt rhs;
 	{momstemp1,rhs}=myrhs[momstemp1,t+dt];
 	mome=(1/2) moms+(1/2)(momstemp1+dt rhs);
+
 	(* SSP-RK3 *)
 	momstemp2=(3/4)moms+(1/4)(momstemp1+dt rhs);
 	{momstemp2,rhs}=myrhs[momstemp2,t+dt/2];
@@ -27,41 +27,8 @@ getnb[nmom_,alf_]:=Module[{nbub},
     Return[nbub,Module];
 ];
 
-RK23nb[mom_,nbub_,alf_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,nmomstemp1,nmomstemp2,rhs,error,nb},
-	(* SSP-RK2 *)
-	{moms,rhs}=myrhs[moms,t];
-    nmoms = moms nbub;
-	nmomstemp1=nmoms+dt nbub rhs;
-    nb[1] = getnb[nmomstemp1,alf]; 
-    momstemp1 = nmomstemp1/nb[1];
-
-	{momstemp1,rhs}=myrhs[momstemp1,t+dt];
-    nmomstemp1 = nb[1]*momstemp1;
-    nb[1] = getnb[nmomstemp1,alf]; 
-
-	nmome=(1/2) nmoms+(1/2)(nmomstemp1+dt nb[1] rhs);
-    nb[2] = getnb[nmome,alf];
-    mome = nmome/nb[2];
-
-	(* SSP-RK3 *)
-	nmomstemp2=(3/4)nmoms+(1/4)(nmomstemp1+dt nb[1] rhs);
-    nb[2] = getnb[nmomstemp2,alf];
-    momstemp2 = nmomstemp2/nb[2];
-    
-	{momstemp2,rhs}=myrhs[momstemp2,t+dt/2];
-    nmomstemp2 = nb[2]*momstemp2;
-    nb[2] = getnb[nmomstemp2,alf]; 
-
-	nmoms=(1/3)nmoms+(2/3)(nmomstemp2+dt nb[2] rhs);
-    nb[3] = getnb[nmoms,alf]; 
-    moms = nmoms/nb[3];
-
-
-	Return[{nmoms,err[moms,mome]},Module];
-];
-
 RK34[mom_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,
-	momstemp3,momstemp4,rhs,rhs3,rhs4,error,c},
+	momstemp3,momstemp4,rhs,rhs3,rhs4,c},
     (* coefficients for SSP-RK4 *)
 
     Print["Not finished"];

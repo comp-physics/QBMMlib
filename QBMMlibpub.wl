@@ -6,13 +6,11 @@ pow::usage="
     pow[x,y] returns x^y where x^0 = 1, even if x=0
 ";
 
-(* getterms::usage=" *)
 TransportTerms::usage="
     getterms[eqn,invars,v4,idx] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
     'eqn' is the governing ODE, 'invars' are the internal coordinates, 'v4' is the acceleration term, and 'idx' are the indices.
 ";
 
-(*  momidx::usage = " *)
 MomentIndex::usage = "
     momidx[nr,nrd,method,numperm,nro] computes the moments required by the 'method' (CQMOM or CHYQMOM) for a given number of nodes in the first, second, and third coordinate directions nr, nrd, and nro. 
     Extra moments are included if the number of permuations, 'numperm', requires it.
@@ -21,9 +19,7 @@ MomentIndex::usage = "
 ";
 
 Project::usage=""
-Quadrature2::usage=""
 
-(*  quad::usage = " *)
 Quadrature::usage="
     quad[w,xi,xis,method,nr,nrd,ks,perm,nro,wRos,Ros] computes the moments M_{lmn} = int[x^l y^m z^n P dx dy dz] with indices 'ks = {l,m,n}' via the weights 'w' and quadrature points in the first 'xi' and second 'xis' coordinate directions.
     An optional third coordinate direction Ro can be included, which has 'nro' number of nodes with weights 'wRos' and abscissa 'Ros'.
@@ -32,177 +28,139 @@ Quadrature::usage="
     The 'method' input takes either 'CQMOM' or 'CHYQMOM', though the operations performed are essentially identical.
 ";
 
-
-MomentInvert::usage = ""
-(* CQMOM::usage=" *)
-
-CQMOM::usage = "
+MomentInvert::usage = "
     CQMOM[perm,mom,k,nr,nrd,nro,wro,ro] performs moment inversion for the optimal weights and abscissa as computed by the CQMOM algorithm [Yuan & Fox, JCP 2011].
     The input moments are 'mom', which correspond to moment indices 'ks'. 
     'perm' is the permutation [=12 for v1 | v2 or = 21 for v2 | v1].
     'nr' and 'nrd' are the number of nodes in the first and second internal coordinate directions.
     A third, static distribution can optionally be included via its number of quadrature points 'nro' and their locations 'ro' and weights 'wro'.
-";
 
-CHYQMOM::usage = "
     CHYQMOM[mom,k,wRo,Ros] performs moment inversion for the optimal weights and abscissa as computed by the CHYQMOM algorithm [Fox et al., JCP 2018; Patel et al., JCPX 2019].
     The input moments are 'mom', which correspond to moment indices 'k'. 
     For three-node closure in any of the coordinate directions (e.g. nr=3 or nrd=3), an optional parameter 'q' is available to limit the amount of skewness that direction. 
     A third, static distribution can optionally be included via its number of quadrature points nro and their locations 'ro' and weights 'wro'.
 ";
 
+Wheeler::usage="
+    Wheeler[mom] computes the one-dimensional optimal weights and abscissa given moments 'mom' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
+";
 
-(* CQMOM[moms_, ks_, n_, wro_:0,ro_:0] := Module[{nr=n[[1]],nrd=[[2]]}, *)
-(* CQMOM[perm_, moms_, ks_, nr_, nrd_, nro_:0,wro_:0,ro_:0] := Module[{}, *)
-(* CHYQMOM[momin_, k_, wRo_: 0, Ros_: 0] := Module[{moms = momin, ks = k}, *)
-(* CHYQMOM[momin_, k_, q_, wRo_: 0, Ros_: 0] := Module[{moms = momin, ks = k}, *)
+MomentFind::usage=""
 
-wheeler::usage=""
 
 Begin["`Private`"];
 
 pow[x_, 0] := 1 /; x == 0 || x == 0.
 pow[x_, y_: 0] := x^y
 
-TransportTerms[eqn_,invars_,v4_,idx_]:=Module[{v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
+MomentFind[moms_, ks_, idx_] := Module[
+    {loc}, 
+    loc=Position[ks,idx][[1,1]];
+    If[IntegerQ[loc],Return[moms[[loc]],Module];];
+    Print["Error! You are looking for a moment that does not exist!"];Abort[]; 
+];
+
+TransportTerms[eqn_,minvars_,idx_]:=Module[
+    {v,integrand,dim,mrdd,list,exp,
+    coefs,exps,vars,l,m,n},
+
+    invars = minvars[[1]];
+    v4 = minvars[[2]];
     dim=Length[invars];
-    If[dim!=2&&dim!=3,Print["Incorrect dimesionallity ",dim];Abort[]];
-    If[dim==2,vars={v[1],v[2]};{l,m}=idx;];
-    If[dim==3,vars={v[1],v[2],v[3]};{l,m,n}=idx;];
+
+    If[dim == 1, 
+        vars = {v[1]}; 
+        {l} = idx;
+    ];
+    If[dim==2,
+        vars={v[1],v[2]};
+        {l,m}=idx;
+    ];
+    If[dim==3,
+        vars={v[1],v[2],v[3]};
+        {l,m,n}=idx;
+    ];
+    If[dim!=1&&dim!=2&&dim!=3,
+        Print["Incorrect dimesionallity ",dim];Abort[];
+    ];
 
     Do[v[i]=invars[[i]],{i,dim}];
     mrdd=v4/.Solve[eqn,v4][[1]];
 
+    If[dim==1,integrand=mrdd v[1]^(l-1)];
     If[dim==2,integrand=mrdd v[1]^l v[2]^(m-1)];
     If[dim==3,integrand=mrdd v[1]^l v[2]^(m-1) v[3]^n];
 
     list=PowerExpand[List@@Distribute[integrand]];
-    If[dim==2,
-        exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
-        (* Pad with a zero to make 3D *)
-        Do[AppendTo[exps[[i]],0],{i,Length[list]}];
+    exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
+
+    If[dim==1,
+        coefs=l Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
+    ,
+        coefs=m Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
     ];
-    If[dim==3,exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}]];
-    coefs=m Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
 
     (* Add term that isn't in the integrand *)
-    If[dim==2,AppendTo[exps,{l-1,m+1,0}]];
+    If[dim==2,AppendTo[exps,{l-1,m+1}]];
     If[dim==3,AppendTo[exps,{l-1,m+1,n}]];
-    AppendTo[coefs,l];
+    If[dim>1,AppendTo[coefs,l]];
     Return[{coefs,exps},Module];
 ];
 
 
 Options[MomentInvert] = {Method->"CHYQMOM",Permutation->12};
-MomentInvert[ mom_, ks_, opts : OptionsPattern[]] := Module[{method,perm},
+MomentInvert[ mom_, ks_, opts : OptionsPattern[]] := Module[{method,perm,xi,w},
     method = OptionValue[Method];
     perm   = OptionValue[Permutation];
+    If[method=="HYQMOM",Return[HYQMOM[mom],Module]];
     If[method=="CHYQMOM",Return[CHYQMOM[mom,ks],Module]];
     If[method=="CQMOM",Return[CQMOM[mom,ks,perm],Module]];
+    If[method=="QMOM",
+        {xi,w}=Wheeler[mom];
+        Return[{w,xi},Module]
+    ];
+    If[method=="AQMOM",
+        {xi,w}=AdaptiveWheeler[mom];
+        Return[{w,xi},Module]
+    ];
     Print["Error, Method invalid!"];Abort[];
 ];
 
 
-Project[ w_, xi_, ks_] := Module[{mom,q,p,l},
-    If[
-        Length[ks[[1]]]==2,
-        proj=Table[Quadrature2[w, xi, {ks[[i, 1]], ks[[i, 2]]}], {i, Length[ks]}];
-    ,
-        proj=Table[Quadrature2[w, xi, {ks[[i, 1]], ks[[i, 2]], ks[[i, 3]] + 1}], {i, Length[ks]}];
-    ];
+Project[ w_, xi_, ks_] := Module[{mom,q,p,l,dim},
+    dim=Length[ks[[1]]];
+    If[dim==1,proj=Table[Quadrature[w, xi, {ks[[i]]}], {i, Length[ks]}]];
+    If[dim==2,proj=Table[Quadrature[w, xi, {ks[[i, 1]], ks[[i, 2]]}], {i, Length[ks]}]];
+    If[dim==3,proj=Table[Quadrature[w, xi, {ks[[i, 1]], ks[[i, 2]], ks[[i, 3]] + 1}], {i, Length[ks]}]];
     Return[proj,Module];
 ];
 
-Quadrature2[ w_, xi_, exp_] := Module[{nro,mom,q,p,l},
-    If[Length[exp]==2,
+Quadrature[ w_, xi_, exp_] := Module[{nro,mom,q,p,l,dim},
+    dim = Length[exp];
+    If[dim==1,
+        nro=0;
+        p=exp[[1]];
+    ];
+    If[dim==2,
         nro=0;
         p=exp[[1]];
         q=exp[[2]];
     ];
-    If[Length[exp]==3,
+    If[dim==3,
         nro=1;
         p=exp[[1]];
         q=exp[[2]];
         l=exp[[3]];
     ];
-    If[
-        nro==0,
-        mom=Sum[w[[i]] xi[[1]][[i]]^p xi[[2]][[i]]^q,{i,Length[w]}],
-        mom=Sum[w[l][[i]] xi[[1]][l][[i]]^p xi[[2]][l][[i]]^q,{i,Length[w[l]]}];
-    ];
+    If[dim==1,mom=Sum[w[[i]] xi[[i]]^p ,{i,Length[w]}]];
+    If[dim==2,mom=Sum[w[[i]] xi[[1]][[i]]^p xi[[2]][[i]]^q,{i,Length[w]}]];
+    If[dim==3,mom=Sum[w[l][[i]] xi[[1]][l][[i]]^p xi[[2]][l][[i]]^q,{i,Length[w[l]]}]];
 	Return[mom,Module];
 ];
 
 
-(* 
-Options[Quadrature] = {Permutation->12};
-Quadrature[ w_, xi_, xis_, n_, ks_, method_, opts : OptionsPattern[]] := Module[{momq,momc,moms,momsp,nr,nrd,nro,perm,dim},
-    perm = OptionValue[Permutation];
-
-    If[Length[ks[[1]]==2,dim=2]];
-    If[Length[ks[[1]]==3,dim=3]];
-
-    nro = Length[DeleteDuplicates[ks[[All,3]]]];
-
-    If[Length[n]==2,
-        nr  = n[[1]];
-        nrd = n[[2]];
-        nro = 0;
-        ,
-        nr  = n[[1]];
-        nrd = n[[2]];
-        nro = n[[3]];
-    ];
-	If[method=="CQMOM",
-		If[nro==0,
-			If[perm==12,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^p xis[j][[i]]^q,{j,nr},{i,nrd}]];
-			If[perm==21,momq[p_,q_]:=Sum[w[j,i] xi[[j]]^q xis[j][[i]]^p,{j,nrd},{i,nr}]];
-			moms=Table[momq[ks[[i,1]],ks[[i,2]]], {i,Length[ks]}]; 
-			(* momsp=Table[momq[ksp[[i,1]],ksp[[i,2]]], {i,Length[ksp]}]; *)
-		];
-		If[nro>0,
-			If[perm==12,
-				momq[p_,q_,l_]:=Sum[w[l][j,i] xi[l][[j]]^p xis[l][j][[i]]^q,{i,nrd},{j,nr}];
-			];
-			If[perm==21,
-				momq[p_,q_,l_]:=Sum[w[l][j,i] xi[l][[j]]^q xis[l][j][[i]]^p,{i,nr},{j,nrd}];
-			];
-			moms=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ks]}]; 
-			(* momsp=Table[momq[ksp[[i,1]],ksp[[i,2]],ks[[i,3]]],{i,Length[ksp]}]; *)
-		];
-	];
-	If[method=="CHYQMOM",
-		If[nro==0,
-			momq[p_,q_]:=Sum[w[[i]]xi[[i]]^p xis[[i]]^q,{i,Length[w]}];
-			moms=Table[momq[ks[[i,1]],ks[[i,2]]], {i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i,1]],ksp[[i,2]]],{i,Length[ksp]}];
-		];
-		If[nro>0,
-            (* gets full moments  *)
-			(* 
-            momc[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
-			momq[p_,q_,r_]:=Sum[wRos[[l]]Ros[[l]]^r momc[p,q,l],{l,nro}];
-			moms=Table[momq[ks[[i,1]],ks[[i,2]],ks[[i,3]]],{i,Length[ks]}]; 
-			momsp=Table[momq[ksp[[i,1]],ksp[[i,2]],ks[[i,3]]],{i,Length[ksp]}];
-            *) 
-
-            (* get conditioned on R_o,l moments, +1 included on last index to promote 0 -> 1 *)
-			momq[p_,q_,l_]:=Sum[w[l][[i]]xi[l][[i]]^p xis[l][[i]]^q,{i,Length[w[l]]}];
-			moms=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ks]}]; 
-            (* these are no longer computable/correct. need to compute them after the fact *)
-			(* momsp=Table[momq[ks[[i,1]],ks[[i,2]],1+ks[[i,3]]],{i,Length[ksp]}];  *)
-		];
-	];
-    (* moms and momsp are projected moments, momq is moment function (via quadrature) for any power pqr *)
-	Return[{moms,momq},Module];
-];
-*)
-
-(* wheeler::usage="
-    wheeler[mom] computes the one-dimensional optimal weights and abscissa given moments 'mom' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
-"; *)
-
-wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys}, 
+Wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys}, 
+    mm = Flatten[mm];
     nn=Length[mm]/2;
     sig = Table[0., {i, 2 nn}, {j, 2 nn}]; 
 
@@ -229,14 +187,25 @@ wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys},
 ];
 
 MomentIndex[n_, method_, numperm_: 2] := Module[{ks, k1, k2, kstemp, nr, nrd, nro}, 
+    If[Length[n]==1,
+        nr  = n[[1]];
+    ];
     If[Length[n]==2,
         nr  = n[[1]];
         nrd = n[[2]];
         nro = 0;
-        ,
+    ];
+    If[Length[n]==3,
         nr  = n[[1]];
         nrd = n[[2]];
         nro = n[[3]];
+    ];
+    If[method == "QMOM" || method == "AQMOM",
+        ks = Table[{i},{i,0,2 nr - 1}]; 
+    ];
+    If[method == "HYQMOM",
+        If[nr==2,ks = {{0},{1},{2}}];
+        If[nr==3,ks = {{0},{1},{2},{3},{4}}];
     ];
     If[method == "CHYQMOM", 
         If[nr == 2, 
@@ -333,13 +302,13 @@ CHYQMOM4m[momin_, kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm
     c11 = d11 - bu bv;
     c02 = d02 - bv^2; 
     M1 = {1, 0, c20}; 
-    {rho, up} = hyqmom[M1]; 
+    {rho, up} = HYQMOM[M1]; 
     Vf = c11 up/c20; 
     mu2avg = c02 - Total[rho Vf^2]; 
     mu2avg = Max[mu2avg, 0]; 
     mu2 = mu2avg; 
     M3 = {1, 0, mu2}; 
-    {rh3, up3} = hyqmom[M3]; 
+    {rh3, up3} = HYQMOM[M3]; 
     vp21 = up3[[1]]; 
     vp22 = up3[[2]]; 
     rho21 = rh3[[1]]; 
@@ -393,14 +362,14 @@ CHYQMOM9m[momin_, kk_, qmax_] :=
     c40 = d40 - 4 bu d30 + 6 bu^2 d20 - 3 bu^4; 
     c04 = d04 - 4 bv d03 + 6 bv^2 d02 - 3 bv^4; 
     M1 = {1, 0, c20, c30, c40}; 
-    {rho, up} = hyqmom[M1]; 
+    {rho, up} = HYQMOM[M1]; 
     If[c20 <= csmall, 
         rho[[1]] = 0; 
         rho[[2]] = 1; 
         rho[[3]] = 0; 
         Vf = 0 up; 
         M2 = {1, 0, c02, c03, c04}; 
-        {rho2, up2} = hyqmom[M2, qmax]; 
+        {rho2, up2} = HYQMOM[M2, qmax]; 
         vp21 = up2[[1]]; 
         vp22 = up2[[2]]; 
         vp23 = up2[[3]]; 
@@ -433,7 +402,7 @@ CHYQMOM9m[momin_, kk_, qmax_] :=
             mu4 = eta mu2^2;
         ]; 
         M3 = {1, 0, mu2, mu3, mu4}; 
-        {rh3, up3} = hyqmom[M3, qmax]; 
+        {rh3, up3} = HYQMOM[M3, qmax]; 
         vp21 = up3[[1]]; 
         vp22 = up3[[2]]; 
         vp23 = up3[[3]]; 
@@ -496,13 +465,13 @@ CHYQMOM4p[momin_,kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm,
         c11 = d11 - bu bv;
         c02 = d02 - bv^2; 
         M1 = {1, 0, c20}; 
-        {rho, up} = hyqmom[M1]; 
+        {rho, up} = HYQMOM[M1]; 
         Vf = c11 up/c20; 
         mu2avg = c02 - Total[rho Vf^2]; 
         mu2avg = Max[mu2avg, 0]; 
         mu2 = mu2avg; 
         M3 = {1, 0, mu2}; 
-        {rh3, up3} = hyqmom[M3]; 
+        {rh3, up3} = HYQMOM[M3]; 
         vp21 = up3[[1]]; 
         vp22 = up3[[2]]; 
         rho21 = rh3[[1]]; 
@@ -564,14 +533,14 @@ CHYQMOM9p[momin_, kk_, qmax_] :=
         c40 = d40 - 4 bu d30 + 6 bu^2 d20 - 3 bu^4; 
         c04 = d04 - 4 bv d03 + 6 bv^2 d02 - 3 bv^4; 
         M1 = {1, 0, c20, c30, c40}; 
-        {rho, up} = hyqmom[M1]; 
+        {rho, up} = HYQMOM[M1]; 
         If[c20 <= csmall, 
             rho[[1]] = 0; 
             rho[[2]] = 1; 
             rho[[3]] = 0; 
             Vf = 0 up; 
             M2 = {1, 0, c02, c03, c04}; 
-            {rho2, up2} = hyqmom[M2, qmax]; 
+            {rho2, up2} = HYQMOM[M2, qmax]; 
             vp21 = up2[[1]]; 
             vp22 = up2[[2]]; 
             vp23 = up2[[3]]; 
@@ -604,7 +573,7 @@ CHYQMOM9p[momin_, kk_, qmax_] :=
                 mu4 = eta mu2^2;
             ]; 
             M3 = {1, 0, mu2, mu3, mu4}; 
-            {rh3, up3} = hyqmom[M3, qmax]; 
+            {rh3, up3} = HYQMOM[M3, qmax]; 
             vp21 = up3[[1]]; 
             vp22 = up3[[2]]; 
             vp23 = up3[[3]]; 
@@ -653,13 +622,14 @@ CHYQMOM9p[momin_, kk_, qmax_] :=
     Return[{nn,{uu,vv}}, Module];
 ];
 
-hyqmom[momin_, qmax_: 0] := Module[{moms = momin}, 
-   If[Length[moms] == 3, Return[hyqmom2[moms], Module]]; 
-   If[Length[moms] == 5, Return[hyqmom3[moms, qmax], Module]]; 
+HYQMOM[moms_, qmax_: 30] := Module[{}, 
+   If[Length[moms] == 3, Return[HYQMOM2[moms], Module]]; 
+   If[Length[moms] == 5, Return[HYQMOM3[moms,qmax], Module]]; 
    Print["Error!"];
 ];
    
-hyqmom2[momin_] := Module[{moms = momin, n, u, bu, d2, c2}, 
+HYQMOM2[momin_] := Module[{moms = momin, n, u, bu, d2, c2}, 
+    moms = Flatten[moms];
     n = Table[0, {i, 2}]; 
     u = n; 
     bu = moms[[2]]/moms[[1]]; 
@@ -673,11 +643,12 @@ hyqmom2[momin_] := Module[{moms = momin, n, u, bu, d2, c2},
     Return[{n, u}, Module];
 ];
    
-hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall, 
+HYQMOM3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall, 
     realizable, realsmall, n,
     u, bu, d2, d3, d4, c2, c3, c4, q, eta, slope, det, qp, qm, 
     scales, srho, err, mo, scale, dem, prod, rho, ups, up}, 
 
+    moms = Flatten[moms];
     etasmall = 10^(-10); 
     verysmall = 10^(-14); 
     realsmall = 10^(-14); 
@@ -696,7 +667,7 @@ hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
     c4 = d4 - 4*bu d3 + 6 bu^2 d2 - 3 bu^4;
     realizable = c2 c4 - c2^3 - c3^2; 
     If[c2 < 0, 
-        If[c2 < -verysmall, Print["c2 negative in three node hyqmom"];Abort[];]; 
+        If[c2 < -verysmall, Print["c2 negative in three node HYQMOM"];Abort[];]; 
         c2 = 0; 
         c3 = 0; 
         c4 = 0;
@@ -717,7 +688,7 @@ hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
                     ]; 
                     eta = q^2 + 1; 
                     c3 = q Sqrt[c2] c2; c4 = eta c2^2; 
-                    If[realizable < -10^-6,Print["c4 small in hyqmom3"];Abort[];];
+                    If[realizable < -10^-6,Print["c4 small in HYQMOM3"];Abort[];];
                 , 
                     c3 = 0; 
                     c4 = c2^2;
@@ -755,7 +726,7 @@ hyqmom3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
     Do[up[i] = ups[i] scale/Sqrt[scales], {i, 3}]; 
     If[
         Min[Table[rho[i], {i, 3}]] < 0, 
-        Print["Negative weight in HyQMOM"]; Abort[];
+        Print["Negative weight in HYQMOM"];Abort[];
     ]; 
     n[[1]] = rho[1]; 
     n[[2]] = rho[2]; 
@@ -794,7 +765,7 @@ CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
     mymom = Pointer[moms, ks]; 
     mRs=Table[mymom[i,0], {i,0,2nr-1}]; 
 
-    {xi,w}=wheeler[mRs]; 
+    {xi,w}=Wheeler[mRs]; 
     v=Table[Table[xi[[i]]^j,{i,nr}],{j,0,nr-1}]; 
     r1=DiagonalMatrix[w]; 
     Do[ms[i]=Table[mymom[j, i], {j, 0, nr - 1}], {i, 0, 2 nrd - 1}]; 
@@ -803,12 +774,12 @@ CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
         condmomvec[j]=Table[condmoms[i][[j]], {i, 0, 2 nrd - 1}]; 
         If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nr}]; 
-    Do[{xis[i], ws[i]} = wheeler[condmomvec[i]], {i,nr}];
+    Do[{xis[i], ws[i]} = Wheeler[condmomvec[i]], {i,nr}];
     Do[
         wtot[j,i]=w[[j]] ws[j][[i]]; 
         If[
             Re[wtot[j, i]]<0 || Im[wtot[j, i]] != 0, 
-            Print["Negative weights"]; Abort[];
+            Print["Negative weights"];Abort[];
         ];
     ,{j,nr},{i,nrd}]; 
 
@@ -826,7 +797,7 @@ CQMOM12p[moms_, ks_] := Module[{mymom, mRs, xi, w, v, r1, ms, nro, nr, nrd,
 	mymom = Pointer[moms,ks]; 
 	Do[
         mRs=Table[mymom[i,0,l-1],{i,0,2nr-1}];
-        {xi[l],w}=wheeler[mRs]; 
+        {xi[l],w}=Wheeler[mRs]; 
         v=Table[Table[xi[l][[i]]^j,{i,nr}],{j,0,nr-1}]; 
         r1=DiagonalMatrix[w];
         Do[ms[m]=Table[mymom[i,m,l-1],{i,0,nr-1}],{m,0,2nrd-1}]; 
@@ -835,7 +806,7 @@ CQMOM12p[moms_, ks_] := Module[{mymom, mRs, xi, w, v, r1, ms, nro, nr, nrd,
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nrd-1}];
             If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
         ,{j,nr}]; 
-        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i]],{i,nr}]; 
+        Do[{xis[l][i],ws[i]}=Wheeler[condmomvec[i]],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{i,nrd},{j,nr}];
 
         wgt[l] = Flatten[Table[wtot[l][j,k],{j,nr},{k,nrd}]];
@@ -855,7 +826,7 @@ CQMOM21m[moms_, ks_] := Module[{pm, mymom, eqns, vars, nr, nrd,
 
     mymom = Pointer[moms, ks]; 
     mRds = Table[mymom[0, i], {i, 0, 2 nrd - 1}]; 
-    {xi, w} = wheeler[mRds]; 
+    {xi, w} = Wheeler[mRds]; 
     v = Table[Table[xi[[i]]^j, {i, 1, nrd}], {j, 0, nrd - 1}]; 
     r1 = DiagonalMatrix[w]; 
     Do[ms[i] = Table[mymom[i, j], {j, 0, nrd - 1}], {i, 0, 2 nr - 1}]; 
@@ -864,10 +835,10 @@ CQMOM21m[moms_, ks_] := Module[{pm, mymom, eqns, vars, nr, nrd,
         condmomvec[j] = Table[condmoms[i][[j]], {i, 0, 2 nr - 1}]; 
         If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
     , {j, nrd}]; 
-    Do[{xis[i], ws[i]} = wheeler[condmomvec[i]], {i, nrd}];
+    Do[{xis[i], ws[i]} = Wheeler[condmomvec[i]], {i, nrd}];
     Do[wtot[j, i] = w[[j]] ws[j][[i]]; 
         If[Re[wtot[j, i]] < 0 || Im[wtot[j, i]] != 0, 
-        Print["Negative weights"]; Abort[];];
+        Print["Negative weights"];Abort[];];
     ,{j,nrd},{i,nr}]; 
 
     Return[{wtot,{xi,xis}},Module];
@@ -883,7 +854,7 @@ CQMOM21p[moms_, ks_] :=Module[{mymom, mRds, xi, w, v, r1, ms,
 	mymom = Pointer[moms,ks]; 
 	Do[
         mRds=Table[mymom[0,i,l-1],{i,0,2nrd-1}];
-        {xi[l],w}=wheeler[mRds]; 
+        {xi[l],w}=Wheeler[mRds]; 
         v=Table[Table[xi[l][[i]]^j, {i,nrd}],{j,0,nrd-1}]; 
         r1=DiagonalMatrix[w];
         Do[ms[i]=Table[mymom[i,j,l-1],{j,0,nrd-1}],{i,0,2nr-1}]; 
@@ -892,7 +863,7 @@ CQMOM21p[moms_, ks_] :=Module[{mymom, mRds, xi, w, v, r1, ms,
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nr-1}];
             If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
         ,{j,nrd}]; 
-        Do[{xis[l][i],ws[i]}=wheeler[condmomvec[i]],{i,nrd}]; 
+        Do[{xis[l][i],ws[i]}=Wheeler[condmomvec[i]],{i,nrd}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{j,nrd},{i,nr}];
 
         wgt[l] = Flatten[Table[wtot[l][j,k],{j,nrd},{k,nr}]];
@@ -903,57 +874,31 @@ CQMOM21p[moms_, ks_] :=Module[{mymom, mRds, xi, w, v, r1, ms,
     Return[{wgt,{ptsX,ptsY}},Module];
 ];
 
-
-vander[x_,q_]:=Module[{n,w,b,s,t,xx,c},
-    n=Length[q];
-    If[n==1,
-        w={q[[1]]};
-        Return[w,Module];
-    ];
-    c=Table[0,{i,n}];
-    w=c;
-    Do[
-        xx=-x[[i]];
-        Do[
-            c[[j]]=c[[j]]+xx c[[j+1]];
-        ,{j,n+1-i,n-1}];
-        c[[n]]=c[[n]]+xx;
-    ,{i,2,n}];
-    Do[
-        xx=x[[i]];
-        t=1;
-        b=1;
-        s=q[[n]];
-        Do[
-            b=c[[k]]+xx b;
-            s=s+q[[k-1]]b;
-            t=xx t+b;
-        ,{k,n,2,-1}];
-        w[[i]]=s/t;
-    ,{i,1,n}];
-    Return[w,Module];
-];
-
-AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
-    eabs=10^(-10),sig,a,b,Ja,w,x,xi,eval,evec,esys,myn,ind,nu,
+AdaptiveWheeler[momin_] := Module[
+    {eabs,sig,a,b,Ja,w,x,xi,eval,evec,esys,myn,ind,nu,
     nout,cutoff,dab,mab,bmin,z,mindab,maxmab},
+
     (* rmin is minimum ratio wmin/wmax *)
     (* eabs is minimum distance between distinct abscissas *)
+
+    mom=Flatten[momin];
+    nn=Length[mom]/2;
+    (* rmin=mins[[1;;nn]] *)
+    rmin = Table[0.01,{i,nn}];
+    eabs=10^(-4);
     cutoff=0.;
-    If [mom[[1]]<0,
-        Print["Negative number density"];
-        Abort[];
-    ];
+
+    If[mom[[1]]<0,Print["Negative number density"];Abort[];];
     If[mom[[1]]==0,
         w=0.;
         x=0.;
-        Return[{{x},{w},1},Module];
+        Return[{{x},{w}},Module];
     ];
     If[
         nn==1||mom[[1]]<rmin[[1]],
         w=mom[[1]];
         x=mom[[2]]/mom[[1]];
-        Return[{{x},{w},1},Module];
+        Return[{{x},{w}},Module];
     ];
 
     (* Compute modified moments equal to moments *)
@@ -966,12 +911,15 @@ AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
     Do[
         sig[[2,i]]=nu[[i-1]];
     ,{i,2,2ind+1}];
-    a[[1]]=nu[[2]]/nu[[1]];
-    b[[1]]=0;
+    a[[1]] = nu[[2]]/nu[[1]];
+    b[[1]] = 0.0;
     Do[
-        Do[sig[[k,l]]=sig[[k-1,l+1]]-a[[k-2]]sig[[k-1,l]]-b[[k-2]]sig[[k-2,l]],{l,k,2ind-k+3}];
-        a[[k-1]]=sig[[k,k+1]]/sig[[k,k]]-sig[[k-1,k]]/sig[[k-1,k-1]];
-        b[[k-1]]=sig[[k,k]]/sig[[k-1,k-1]];
+        Do[
+            sig[[k,l]] = sig[[k-1,l+1]] - a[[k-2]] sig[[k-1,l]] - b[[k-2]] sig[[k-2,l]];
+            If[Abs[sig[[k,l]]] < 10.^(-16),sig[[k,l]] = 10.^(-16)];
+        ,{l,k,2*ind - k + 3}];
+        a[[k-1]] = sig[[k,k+1]] / sig[[k,k]] - sig[[k-1,k]] / sig[[k-1,k-1]];
+        b[[k-1]] = sig[[k,k]] / sig[[k-1,k-1]];
     ,{k,3,ind+1}];
     (* Determine maximum n using diag elements of sig *)
     myn=nn;
@@ -983,11 +931,10 @@ AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
                 myn==1,
                 w=mom[[1]];
                 x=mom[[2]]/mom[[1]];
-                Return[{{x},{w},1},Module];
+                Return[{{x},{w}},Module];
             ];
         ];
     ,{k,ind+1,3,-1}];
-
     (* Compute quadrature using maximum n *)
     a=Table[0,{i,myn}];
     b=Table[0,{i,myn}];
@@ -998,7 +945,10 @@ AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
     a[[1]]=nu[[2]]/nu[[1]];
     b[[1]]=0.;
     Do[
-        Do[sig[[k,l]]=sig[[k-1,l+1]]-a[[k-2]] sig[[k-1,l]]-b[[k-2]] sig[[k-2,l]],{l,k,2 myn-k+3}];
+        Do[
+            sig[[k,l]]=sig[[k-1,l+1]]-a[[k-2]] sig[[k-1,l]]-b[[k-2]] sig[[k-2,l]];
+            If[Abs[sig[[k,l]]] < 10.^(-16),sig[[k,l]] = 10.^(-16)];
+        ,{l,k,2 myn-k+3}];
         a[[k-1]]=sig[[k,k+1]]/sig[[k,k]]-sig[[k-1,k]]/sig[[k-1,k-1]];
         b[[k-1]]=sig[[k,k]]/sig[[k-1,k-1]];
     ,{k,3,myn+1}];
@@ -1010,7 +960,7 @@ AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
         If[nl==1,
         w=mom[[1]];
         x=mom[[2]]/mom[[1]];
-        Return[{{x},{w},1},Module];
+        Return[{{x},{w}},Module];
         ];
         z=Table[0,{i,1,nl},{j,1,nl}];
         Do[
@@ -1038,9 +988,40 @@ AdaptiveWheeler[m_,n_,mins_] := Module[{nn=n,mom=m,rmin=mins[[1;;n]],
         (* Check conditions that weights and abscissas must both satisfy *)
         If[
             Min[w]/Max[w]>rmin[[nl]]&&mindab/maxmab>eabs,
-            Return[{x,w,Length[w]},Module];
+            Return[{x,w},Module];
         ];
     ,{nl,myn,1,-1}];
+];
+
+
+VanderSolve[x_,q_]:=Module[{n,w,b,s,t,xx,c},
+    n=Length[q];
+    If[n==1,
+        w={q[[1]]};
+        Return[w,Module];
+    ];
+    c=Table[0,{i,n}];
+    w=c;
+    Do[
+        xx=-x[[i]];
+        Do[
+            c[[j]]=c[[j]]+xx c[[j+1]];
+        ,{j,n+1-i,n-1}];
+        c[[n]]=c[[n]]+xx;
+    ,{i,2,n}];
+    Do[
+        xx=x[[i]];
+        t=1;
+        b=1;
+        s=q[[n]];
+        Do[
+            b=c[[k]]+xx b;
+            s=s+q[[k-1]]b;
+            t=xx t+b;
+        ,{k,n,2,-1}];
+        w[[i]]=s/t;
+    ,{i,1,n}];
+    Return[w,Module];
 ];
 
 End[];
