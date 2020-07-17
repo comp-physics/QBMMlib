@@ -47,6 +47,9 @@ Wheeler::usage="
 
 MomentFind::usage=""
 
+ComputeRHS::usage=""
+
+OutAbscissa::usage=""
 
 Begin["`Private`"];
 
@@ -60,13 +63,15 @@ MomentFind[moms_, ks_, idx_] := Module[
     Print["Error! You are looking for a moment that does not exist!"];Abort[]; 
 ];
 
-TransportTerms[eqn_,minvars_,idx_]:=Module[
-    {v,integrand,dim,mrdd,list,exp,
-    coefs,exps,vars,l,m,n},
+
+TransportTerms[eqn_,minvars_]:=Module[
+    {v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
 
     invars = minvars[[1]];
     v4 = minvars[[2]];
     dim=Length[invars];
+
+    idx=Table[Symbol["c"][i],{i,dim}];
 
     If[dim == 1, 
         vars = {v[1]}; 
@@ -81,7 +86,7 @@ TransportTerms[eqn_,minvars_,idx_]:=Module[
         {l,m,n}=idx;
     ];
     If[dim!=1&&dim!=2&&dim!=3,
-        Print["Incorrect dimesionallity ",dim];Abort[];
+        Print["Dimesionallity incorrect! Dim = ",dim];Abort[];
     ];
 
     Do[v[i]=invars[[i]],{i,dim}];
@@ -107,23 +112,52 @@ TransportTerms[eqn_,minvars_,idx_]:=Module[
     Return[{coefs,exps},Module];
 ];
 
+OutAbscissa[xi_] := Module[{nro,dim},
+    If[NumberQ[Max[xi[[1]][1]]],
+        dim=3;,
+        dim=Length[Dimensions[xi]];
+    ];
+
+    If[dim!=1&&dim!=2&&dim!=3,
+        Print["Dimesionallity incorrect! Dim = ",dim];Abort[];
+    ];
+
+    If[dim == 1, Return[Re[Flatten[xi]],Module]];
+	If[dim == 2, Return[Re[Thread[xi]]]];
+	If[dim == 3, 
+        nro = 0;
+        Do[
+            If[
+                NumberQ[Max[xi[[1]][k]]],
+                nro=k,
+                Break[]
+            ],
+        {k,10^5}];
+        Return[Table[Thread[{xi[[1]][j], xi[[2]][j]}], {j,nro}],Module]
+    ];
+];
 
 Options[MomentInvert] = {Method->"CHYQMOM",Permutation->12};
-MomentInvert[ mom_, ks_, opts : OptionsPattern[]] := Module[{method,perm,xi,w},
+MomentInvert[ mom_, ks_, opts : OptionsPattern[]] := Module[{method,perm,xi,w,dim},
+    dim = Dimensions[ks][[2]];
     method = OptionValue[Method];
     perm   = OptionValue[Permutation];
-    If[method=="HYQMOM",Return[HYQMOM[mom],Module]];
-    If[method=="CHYQMOM",Return[CHYQMOM[mom,ks],Module]];
-    If[method=="CQMOM",Return[CQMOM[mom,ks,perm],Module]];
-    If[method=="QMOM",
-        {xi,w}=Wheeler[mom];
-        Return[{w,xi},Module]
+    If[dim==1,
+        If[method=="HYQMOM",Return[HYQMOM[mom],Module]];
+        If[method=="QMOM",
+            {xi,w}=Wheeler[mom];
+            Return[{w,xi},Module]
+        ];
+        If[method=="AQMOM",
+            {xi,w}=AdaptiveWheeler[mom];
+            Return[{w,xi},Module]
+        ];
     ];
-    If[method=="AQMOM",
-        {xi,w}=AdaptiveWheeler[mom];
-        Return[{w,xi},Module]
+    If[dim==2||dim==3,
+        If[method=="CHYQMOM",Return[CHYQMOM[mom,ks],Module]];
+        If[method=="CQMOM",Return[CQMOM[mom,ks,perm],Module]];
     ];
-    Print["Error, Method invalid!"];Abort[];
+    Print["Error, method/dimensionality mismatch!"];Abort[];
 ];
 
 
@@ -158,6 +192,33 @@ Quadrature[ w_, xi_, exp_] := Module[{nro,mom,q,p,l,dim},
 	Return[mom,Module];
 ];
 
+Options[ComputeRHS] = {Conditioning -> 0.0};
+ComputeRHS[w_, xi_, ks_, terms_, opts : OptionsPattern[]] := Module[
+   	{rhs, rule, myexps, mycoefs, rhstot, Ros, dim, exps, coefs},
+   	Ros = OptionValue[Conditioning];
+   	dim = Length[ks[[1]]];
+	coefs = terms[[1]];
+	exps = terms[[2]];
+   	rhstot = {};
+   	Do[
+        rule = Table[Symbol["c"][i] -> ks[[j, i]], {i, dim}]; 
+    	myexps = Table[exps[[i]] /. rule, {i, Length[exps]}];
+    	mycoefs = Table[coefs[[i]] /. rule, {i, Length[coefs]}];
+    	If[dim == 1 || dim == 2,
+     	    rhs = Sum[
+                mycoefs[[i]] Quadrature[w, xi, myexps[[i]]]
+            ,{i,Length[coefs]}]
+     	];
+    	If[dim == 3,
+            rhs = Sum[
+        	    mycoefs[[i]] pow[Ros[[ks[[j, 3]] + 1]], myexps[[i, 3]] - ks[[j, 3]]]
+                Quadrature[w, xi, {myexps[[i, 1]], myexps[[i, 2]], 1 + ks[[j, 3]]}]
+        	,{i,Length[coefs]}];
+     	];
+    	AppendTo[rhstot, rhs];
+    ,{j,Length[ks]}];
+   	Return[rhstot, Module];
+];
 
 Wheeler[mom_] := Module[{mm = mom, nn, sig, a, b, Ja, w, xi, eval, evec, esys}, 
     mm = Flatten[mm];
