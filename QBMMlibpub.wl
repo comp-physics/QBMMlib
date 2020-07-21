@@ -837,7 +837,8 @@ CQMOM[moms_, ks_, perm_] := Module[{},
 ];
 
 CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
-    mRs, xi, w, v, r1, ms, condmoms, condmomvec, mout, xis, ws, wtot}, 
+    mRs, xi, w, v, r1, ms, condmoms, condmomvec, mout, xis, ws, wtot,
+   wgt,pts,ptsX,ptsY}, 
 
     nr  = (Max[ks[[All, 1]]] + 1)/2;
     nrd = (Max[ks[[All, 2]]] + 1)/2;
@@ -862,9 +863,12 @@ CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
         ];
     ,{j,nr},{i,nrd}]; 
 
-    (* xis[1] =  *)
+    wgt = Flatten[Table[wtot[j,k],{j,nr},{k,nrd}]];
+    pts = Flatten[Table[Thread[{xi[[i]],xis[i]}],{i,nr}],1];
+    ptsX = pts[[All,1]];
+    ptsY = pts[[All,2]];
 
-    Return[{wtot,{xi,xis}}, Module];
+    Return[{wgt,{ptsX,ptsY}}, Module];
 ];
        
 CQMOM12p[moms_, ks_] := Module[{mymom, mRs, xi, w, v, r1, ms, nro, nr, nrd,
@@ -898,7 +902,8 @@ CQMOM12p[moms_, ks_] := Module[{mymom, mRs, xi, w, v, r1, ms, nro, nr, nrd,
 
 
 CQMOM21m[moms_, ks_] := Module[{pm, mymom, eqns, vars, nr, nrd,
-    linsolv, mRds, xi, w, v, r1, ms, condmoms, condmomvec, mout, xis, ws, wtot}, 
+    linsolv, mRds, xi, w, v, r1, ms, condmoms, condmomvec, mout, xis, ws, wtot,
+    wgt,pts,ptsX,ptsY}, 
 
     nr  = (Max[ks[[All, 1]]] + 1)/2;
     nrd = (Max[ks[[All, 2]]] + 1)/2;
@@ -920,7 +925,13 @@ CQMOM21m[moms_, ks_] := Module[{pm, mymom, eqns, vars, nr, nrd,
         Print["Negative weights"];Abort[];];
     ,{j,nrd},{i,nr}]; 
 
-    Return[{wtot,{xi,xis}},Module];
+
+    wgt = Flatten[Table[wtot[j,k],{j,nrd},{k,nr}]];
+    pts = Flatten[Table[Thread[{xis[i],xi[[i]]}],{i,nrd}],1];
+    ptsX = pts[[All,1]];
+    ptsY = pts[[All,2]];
+
+    Return[{wgt,{ptsX,ptsY}}, Module];
 ];
    
 
