@@ -1267,8 +1267,8 @@ Cell[BoxData[{
           RowBox[{
            RowBox[{"mom", "[", "i", "]"}], "=", 
            RowBox[{"Project", "[", 
-            RowBox[{"w", ",", "xi", ",", "ks"}], "]"}]}], ";"}], "\n", "\t\t",
-          "\n", "\t", ",", 
+            RowBox[{"w", ",", "xi", ",", "ks"}], "]"}]}], ";"}], "\n", "\t", 
+         ",", 
          RowBox[{"{", 
           RowBox[{"i", ",", "nperm"}], "}"}]}], "]"}], ";", "\n", "\t", 
        RowBox[{"mout", "=", 
@@ -1460,9 +1460,10 @@ Cell[BoxData[{
    3.804893226080598*^9, 3.804893230790036*^9}, 3.804893697178117*^9, 
    3.804895188022375*^9, {3.804895218223443*^9, 3.8048952185616827`*^9}, {
    3.804895819093987*^9, 3.804895837218152*^9}, {3.804896423682001*^9, 
-   3.804896424475252*^9}, {3.804896492707741*^9, 3.804896493000676*^9}},
- CellLabel->
-  "In[685]:=",ExpressionUUID->"83f05bcb-ac4c-46d3-a2f5-f5ae67ca1313"],
+   3.804896424475252*^9}, {3.804896492707741*^9, 3.804896493000676*^9}, {
+   3.804955078009356*^9, 
+   3.804955078692266*^9}},ExpressionUUID->"83f05bcb-ac4c-46d3-a2f5-\
+f5ae67ca1313"],
 
 Cell[BoxData[
  RowBox[{
@@ -12084,13 +12085,13 @@ Cell[BoxData[{
 8b924a3538a9"]
 }, Open  ]]
 },
-WindowSize->{840, 1005},
-WindowMargins->{{0, Automatic}, {Automatic, 390}},
+WindowSize->{1280, 1395},
+WindowMargins->{{0, Automatic}, {Automatic, 0}},
 FrontEndVersion->"12.0 for Mac OS X x86 (64-bit) (April 8, 2019)",
 StyleDefinitions->Notebook[{
    Cell[
     StyleData[StyleDefinitions -> "Dimad.nb"]]}, 
-  WindowMargins -> {{436, Automatic}, {-296, Automatic}}, Visible -> False, 
+  WindowMargins -> {{436, Automatic}, {0, Automatic}}, Visible -> False, 
   FrontEndVersion -> "12.0 for Mac OS X x86 (64-bit) (April 8, 2019)", 
   StyleDefinitions -> "PrivateStylesheetFormatting.nb"]
 ]

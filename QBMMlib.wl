@@ -5,7 +5,7 @@ BeginPackage["QBMMlib`"];
 TransportTerms::usage="
     TransportTerms[eqn,vars] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
     'eqn' is the governing ODE, 'invars = {{xi},xi3}' where xi are a list internal coordinates and xi3 is the time derivative of the highest order internal coordinate.
-   ";
+";
 
 MomentIndex::usage = "
     MomentIndex[n,method,nperm] computes the moments required by the 'method' (QMOM, AQMOM, CQMOM, CHYQMOM) for a given number of nodes n. 
@@ -14,10 +14,8 @@ MomentIndex::usage = "
     Constraints: In 2D CHyQMOM only supports n[[1]] == n[[2]]. 
 ";
 
-Project::usage=""
-
-Quadrature::usage="
-    Quadrature[w,xi,idx] computes the raw moment M = Int[ Product[ (x)_i^(idx)_i d(x)_i ]  P ] with indices idx and internal coordinates x. 
+Wheeler::usage="
+    Wheeler[mom] computes the one-dimensional optimal weights and abscissa given moments (mom) using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
 ";
 
 MomentInvert::usage = "
@@ -26,25 +24,37 @@ MomentInvert::usage = "
     (method) is one of CQMOM [Yuan & Fox JCP 2011], CHyQMOM [Fox et al., JCP 2018; Patel et al., JCPX 2019], HyQMOM (1D only) or QMOM (1D only) [Wheeler, Rocky Mt. J. Math. 1974].
     (perm) is the permutation [=12 for v1 | v2 or = 21 for v2 | v1] for two-dimensional problems.
     For method='CHYQMOM' and n[[1]]=n[[2]]=3 or method='HYQMOM' and n[[1]]=3 a maximum skewness can be prescribed via option 'MaxSkewness->maxskew'
-    Default is 30.
+    By default (maxskew) = 30.
 ";
 
-Wheeler::usage="
-    Wheeler[mom] computes the one-dimensional optimal weights and abscissa given moments 'mom' using Wheeler's algorithm [Wheeler, Rocky Mt. J. Math. 1974].
+Quadrature::usage="
+    Quadrature[w,xi,idx] computes the raw moment M = Int[ Product[ w_i (x)_i^(idx)_i d(x)_i ]  P ] (for indices idx, abscissas xi, and weights w). 
 ";
 
-MomentFind::usage=""
-
-ComputeRHS::usage=""
-
-OutAbscissa::usage=""
-
-pow::usage="
-    pow[x,y] returns x^y where x^0 = 1, even if x=0
+Project::usage="
+    Project[w,xi,idxs] computes all moments in (idxs) via quadrature (Quadrature) using weights (w) and abscissas (xi).
 ";
+
+MomentFind::usage="
+    MomentFind[mom,idxs,idx] returns the (idx) = {idx_1,...,idx_N} moment, where (N) is the number of internal coordinates, from list of moments (mom) and indices (idxs), so long as idx is a component of indxs.
+";
+
+ComputeRHS::usage="
+    ComputeRHS[w,xi,idxs,{coef,exp},Conditioning->xi3] computes the RHS of the moment transport equations.
+    (w) and (xi) are the weights and abscissas, (idxs) are the indices of the moment set, (coef) and (exp) are the coefficients and exponents associated with the internal coordinates required to close the equations
+    (coef) and (exp) should be computed using TransportTerms.
+    ComputeRHS operates natively for 1D and 2D moment sets, and can take an optional third coordinate direction for which the abscissa are fixed (xi3) with option Conditioning->xi3.
+"
+
+OutAbscissa::usage="
+    OutAbscissa[xi] returns a threaded list of the abscissa (xi) in 1D, 2D, or 3D (as appropritate).
+"
 
 Begin["`Private`"];
 
+(* pow::usage="
+    pow[x,y] returns x^y where x^0 = 1, even if x=0
+"; *)
 
 pow[x_, 0] := 1 /; x == 0 || x == 0.
 pow[x_, y_: 0] := x^y
@@ -53,7 +63,7 @@ MomentFind[moms_, ks_, idx_] := Module[
     {loc}, 
     loc=Position[ks,idx][[1,1]];
     If[IntegerQ[loc],Return[moms[[loc]],Module];];
-    Print["Error! You are looking for a moment that does not exist!"];Abort[]; 
+    Print["Error: You are looking for a moment that does not exist in your moment set."];Abort[]; 
 ];
 
 
@@ -79,7 +89,7 @@ TransportTerms[eqn_,minvars_]:=Module[
         {l,m,n}=idx;
     ];
     If[dim!=1&&dim!=2&&dim!=3,
-        Print["Dimesionallity incorrect! Dim = ",dim];Abort[];
+        Print["Error: Dimesionallity not supported. You used dim = ",dim];Abort[];
     ];
 
     Do[v[i]=invars[[i]],{i,dim}];
@@ -151,7 +161,7 @@ MomentInvert[ mom_, ks_, opts : OptionsPattern[]] := Module[{method,perm,xi,w,di
         If[method=="CHYQMOM",Return[CHYQMOM[mom,ks,maxskew],Module]];
         If[method=="CQMOM",Return[CQMOM[mom,ks,perm],Module]];
     ];
-    Print["Error, method/dimensionality mismatch!"];Abort[];
+    Print["Error: method/dimensionality mismatch!"];Abort[];
 ];
 
 
@@ -245,14 +255,13 @@ MomentIndex[n_, method_, numperm_: 1] := Module[{ks, k1, k2, kstemp, nr, nrd, nr
    
     dim=Length[n];
     If[dim!=1&&dim!=2&&dim!=3,
-        Print["Error, unsupported choice of dimensionality n ", n];
+        Print["Error: unsupported choice of dimensionality n ", n];Abort[];
     ];
 
     If[dim==1,
         nr  = n[[1]];
         If[method!="AQMOM"&&method!="QMOM"&&method!="HYQMOM",
-            Print["Error, incompatible choices of method and dimensionality"];
-            Abort[];
+            Print["Error: incompatible choices of method and dimensionality"];Abort[];
         ];
     ];
     If[dim==2,
@@ -260,8 +269,7 @@ MomentIndex[n_, method_, numperm_: 1] := Module[{ks, k1, k2, kstemp, nr, nrd, nr
         nrd = n[[2]];
         nro = 0;
         If[method!="CQMOM"&&method!="CHYQMOM",
-            Print["Error, incompatible choices of method and dimensionality"];
-            Abort[];
+            Print["Error: incompatible choices of method and dimensionality"];Abort[];
         ];
     ];
     If[dim==3,
@@ -269,8 +277,7 @@ MomentIndex[n_, method_, numperm_: 1] := Module[{ks, k1, k2, kstemp, nr, nrd, nr
         nrd = n[[2]];
         nro = n[[3]];
         If[method!="CQMOM"&&method!="CHYQMOM",
-            Print["Error, incompatible choices of method and dimensionality"];
-            Abort[];
+            Print["Error: incompatible choices of method and dimensionality"];Abort[];
         ];
     ];
     If[method == "QMOM" || method == "AQMOM",
@@ -343,7 +350,7 @@ Pointer[ moms_, ks_ ] := Module[{eqns, vars, linsolv, pm, mymom},
         mymom[q_, p_, r_] := linsolv[[First[First[Position[ks,{q,p,r}]]]]]; 
         Return[mymom, Module];
     ]; 
-    Print["Error, k index not 2D or 3D!"];
+    Print["Error: Index not 2D or 3D!"];Abort[];
 ];
  
 (* Options[CHYQMOM] = {MaxSkewness->30}; *)
@@ -356,7 +363,7 @@ CHYQMOM[momin_, k_, q_:30] := Module[{moms = momin, ks = k},
         If[Mod[Length[moms], 6] == 0,Return[CHYQMOM4p[moms, ks], Module]]; 
         If[Mod[Length[moms],10] == 0,Return[CHYQMOM9p[moms, ks, q], Module]];   
     ];
-    Print["Error, no valid CHYQMOM routine found!"];Abort[];
+    Print["Error: No valid CHYQMOM routine found!"];Abort[];
 ];
    
 CHYQMOM4m[momin_, kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm, mymom, n, 
@@ -707,7 +714,7 @@ CHYQMOM9p[momin_, kk_, qmax_] :=
 HYQMOM[moms_, qmax_: 30] := Module[{}, 
    If[Length[moms] == 3, Return[HYQMOM2[moms], Module]]; 
    If[Length[moms] == 5, Return[HYQMOM3[moms,qmax], Module]]; 
-   Print["Error!"];
+   Print["Error: Unsupported number of moments for HyQMOM."];Abort[];
 ];
    
 HYQMOM2[momin_] := Module[{moms = momin, n, u, bu, d2, c2}, 
@@ -749,7 +756,7 @@ HYQMOM3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
     c4 = d4 - 4*bu d3 + 6 bu^2 d2 - 3 bu^4;
     realizable = c2 c4 - c2^3 - c3^2; 
     If[c2 < 0, 
-        If[c2 < -verysmall, Print["c2 negative in three node HYQMOM"];Abort[];]; 
+        If[c2 < -verysmall, Print["Error: c2 negative in three node HYQMOM"];Abort[];]; 
         c2 = 0; 
         c3 = 0; 
         c4 = 0;
@@ -770,7 +777,7 @@ HYQMOM3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
                     ]; 
                     eta = q^2 + 1; 
                     c3 = q Sqrt[c2] c2; c4 = eta c2^2; 
-                    If[realizable < -10^-6,Print["c4 small in HYQMOM3"];Abort[];];
+                    If[realizable < -10^-6,Print["Error: c4 small in HYQMOM3"];Abort[];];
                 , 
                     c3 = 0; 
                     c4 = c2^2;
@@ -808,7 +815,7 @@ HYQMOM3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
     Do[up[i] = ups[i] scale/Sqrt[scales], {i, 3}]; 
     If[
         Min[Table[rho[i], {i, 3}]] < 0, 
-        Print["Negative weight in HYQMOM"];Abort[];
+        Print["Error: Negative weight in HYQMOM"];Abort[];
     ]; 
     n[[1]] = rho[1]; 
     n[[2]] = rho[2]; 
@@ -822,7 +829,7 @@ HYQMOM3[momin_, qmax_] := Module[{moms = momin, etasmall, verysmall,
 
     mo = Table[Sum[n[[i]] pow[u[[i]], j], {i, 1, 3}], {j, 0, 4}]; 
     err = mo - moms; 
-    If[err[[3]] > 10^-6 && moms[[1]] > verysmall, Print["err ", err];];
+    (* If[err[[3]] > 10^-6 && moms[[1]] > verysmall, Print["err ", err];]; *)
     Return[{n, u}, Module];
 ];
     
@@ -836,7 +843,7 @@ CQMOM[moms_, ks_, perm_] := Module[{},
         If[Length[ks[[1]]] == 2,Return[CQMOM21m[moms, ks], Module]]; 
         If[Length[ks[[1]]] == 3,Return[CQMOM21p[moms, ks], Module]];
     ];
-    Print["Error, invalid choice of permutation!"];Abort[];
+    Print["Error: Invalid choice of permutation."];Abort[];
 ];
 
 CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
@@ -855,14 +862,14 @@ CQMOM12m[moms_, ks_]:=Module[{pm, mymom, eqns, vars, linsolv, nr, nrd,
     Do[condmoms[i]=Re[LinearSolve[v.r1, ms[i]]], {i, 0, 2 nrd - 1}]; 
     Do[
         condmomvec[j]=Table[condmoms[i][[j]], {i, 0, 2 nrd - 1}]; 
-        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+        If[Norm[Im[condmomvec[j]]] > 0, Print["Error: Complex conditioned moment vector"];Abort[];];
     , {j, nr}]; 
     Do[{xis[i], ws[i]} = Wheeler[condmomvec[i]], {i,nr}];
     Do[
         wtot[j,i]=w[[j]] ws[j][[i]]; 
         If[
             Re[wtot[j, i]]<0 || Im[wtot[j, i]] != 0, 
-            Print["Negative weights"];Abort[];
+            Print["Error: Negative weights"];Abort[];
         ];
     ,{j,nr},{i,nrd}]; 
 
@@ -890,7 +897,7 @@ CQMOM12p[moms_, ks_] := Module[{mymom, mRs, xi, w, v, r1, ms, nro, nr, nrd,
         Do[condmoms[i]=LinearSolve[v.r1,ms[i]],{i,0,2 nrd-1}]; 
         Do[
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nrd-1}];
-            If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+            If[Norm[Im[condmomvec[j]]] > 0, Print["Error: Complex conditioned moment vector"];Abort[];];
         ,{j,nr}]; 
         Do[{xis[l][i],ws[i]}=Wheeler[condmomvec[i]],{i,nr}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{i,nrd},{j,nr}];
@@ -920,12 +927,12 @@ CQMOM21m[moms_, ks_] := Module[{pm, mymom, eqns, vars, nr, nrd,
     Do[condmoms[i] = Re[LinearSolve[v.r1, ms[i]]], {i, 0, 2 nr - 1}]; 
     Do[
         condmomvec[j] = Table[condmoms[i][[j]], {i, 0, 2 nr - 1}]; 
-        If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+        If[Norm[Im[condmomvec[j]]] > 0, Print["Error: Complex conditioned moment vector"];Abort[];];
     , {j, nrd}]; 
     Do[{xis[i], ws[i]} = Wheeler[condmomvec[i]], {i, nrd}];
     Do[wtot[j, i] = w[[j]] ws[j][[i]]; 
         If[Re[wtot[j, i]] < 0 || Im[wtot[j, i]] != 0, 
-        Print["Negative weights"];Abort[];];
+        Print["Error: Negative weights"];Abort[];];
     ,{j,nrd},{i,nr}]; 
 
 
@@ -954,7 +961,7 @@ CQMOM21p[moms_, ks_] :=Module[{mymom, mRds, xi, w, v, r1, ms,
         Do[condmoms[i]=LinearSolve[v.r1,ms[i]],{i,0,2 nr-1}]; 
         Do[
             condmomvec[j]=Table[condmoms[i][[j]],{i,0,2nr-1}];
-            If[Norm[Im[condmomvec[j]]] > 0, Print["Imag cond momvec"];Abort[];];
+            If[Norm[Im[condmomvec[j]]] > 0, Print["Error: Complex conditioned moment vector"];Abort[];];
         ,{j,nrd}]; 
         Do[{xis[l][i],ws[i]}=Wheeler[condmomvec[i]],{i,nrd}]; 
         Do[wtot[l][j,i]=w[[j]] ws[j][[i]],{j,nrd},{i,nr}];
@@ -981,7 +988,7 @@ AdaptiveWheeler[momin_] := Module[
     eabs=10^(-4);
     cutoff=0.;
 
-    If[mom[[1]]<0,Print["Negative number density"];Abort[];];
+    If[mom[[1]]<0,Print["Error: Negative number density"];Abort[];];
     If[mom[[1]]==0,
         w=0.;
         x=0.;
@@ -1047,7 +1054,7 @@ AdaptiveWheeler[momin_] := Module[
     ,{k,3,myn+1}];
     (* Check if moments are not realizable (should never happen) *)
     bmin=Min[b];
-    If[bmin<0,Print["Moments in Wheeler moments are not realizable!"];Abort[];];
+    If[bmin<0,Print["Error: Moments in Wheeler moments are not realizable"];Abort[];];
     (* Setup Jacobi matrix for n-point quadrature, adapt n using rmax and eabs *)
     Do[
         If[nl==1,
