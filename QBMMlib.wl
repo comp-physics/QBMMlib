@@ -46,6 +46,12 @@ ComputeRHS::usage="
     ComputeRHS operates natively for 1D and 2D moment sets, and can take an optional third coordinate direction for which the abscissa are fixed (xi3) with option Conditioning->xi3.
 "
 
+RK23::usage="
+    RK23[mom,F,t,dt] uses the strong-stability preserving (SSP), third-order accurate, Runge--Kutta algorithm to update the moments (mom) according to right-hand-side operator (F) at time (t) with time step (dt). 
+    The L1 norm of the difference between this and the solution using an embedded SSP second-order accurate Runge--Kutta algorithm is used to compute the time step error to first-order accuracy.
+    The output is {momnew,e}, where (momnew) are the updated moments and (e) is the approximation of time-step error.
+";
+
 OutAbscissa::usage="
     OutAbscissa[xi] returns a threaded list of the abscissa (xi) in 1D, 2D, or 3D (as appropritate).
 "
@@ -413,6 +419,61 @@ CHYQMOM4m[momin_, kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm
     Return[{n,{u,v}}, Module];
 ];
 
+CHYQMOM4p[momin_,kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm, mymom, n, 
+    bu, bv, d20, d11, d02, c20, c11, c02, M1, rho, up, Vf, mu2avg, 
+    mu2, M3, rh3, up3, vp21, vp22, rho21, rho22, u, v, nro, nn, uu, vv}, 
+
+    nro = Length[DeleteDuplicates[ks[[All,3]]]];
+    mymom = Pointer[moms, ks]; 
+    (* operating on conditioned moments for each Ro slice *)
+    Do[
+        n = Table[0, {i, 4}]; u = n; v = n; 
+        bu  = mymom[1, 0, l-1]/mymom[0, 0, l-1]; 
+        bv  = mymom[0, 1, l-1]/mymom[0, 0, l-1]; 
+        d20 = mymom[2, 0, l-1]/mymom[0, 0, l-1]; 
+        d11 = mymom[1, 1, l-1]/mymom[0, 0, l-1]; 
+        d02 = mymom[0, 2, l-1]/mymom[0, 0, l-1]; 
+        c20 = d20 - bu^2; 
+        c11 = d11 - bu bv;
+        c02 = d02 - bv^2; 
+        M1 = {1, 0, c20}; 
+        {rho, up} = HYQMOM[M1]; 
+        Vf = c11 up/c20; 
+        mu2avg = c02 - Total[rho Vf^2]; 
+        mu2avg = Max[mu2avg, 0]; 
+        mu2 = mu2avg; 
+        M3 = {1, 0, mu2}; 
+        {rh3, up3} = HYQMOM[M3]; 
+        vp21 = up3[[1]]; 
+        vp22 = up3[[2]]; 
+        rho21 = rh3[[1]]; 
+        rho22 = rh3[[2]]; 
+
+        n[[1]] = rho[[1]] rho21; 
+        n[[2]] = rho[[1]] rho22; 
+        n[[3]] = rho[[2]] rho21; 
+        n[[4]] = rho[[2]] rho22; 
+        n = mymom[0, 0, l-1] n; 
+
+        u[[1]] = up[[1]]; 
+        u[[2]] = up[[1]]; 
+        u[[3]] = up[[2]]; 
+        u[[4]] = up[[2]]; 
+        u = bu + u;
+
+        v[[1]] = Vf[[1]] + vp21; 
+        v[[2]] = Vf[[1]] + vp22; 
+        v[[3]] = Vf[[2]] + vp21; 
+        v[[4]] = Vf[[2]] + vp22; 
+        v = bv + v; 
+
+        nn[l] = n;
+        uu[l] = u;
+        vv[l] = v;
+    ,{l,nro}];
+    Return[{nn,{uu,vv}}, Module];
+];
+ 
 
 CHYQMOM9m[momin_, kk_, qmax_] := 
   Module[{moms = momin, ks = kk, vars, linsolv, mymom, n, csmall, 
@@ -530,62 +591,6 @@ CHYQMOM9m[momin_, kk_, qmax_] :=
     Return[{n, {u, v}}, Module];
 ];
 
-
-CHYQMOM4p[momin_,kk_] := Module[{moms = momin, ks = kk, eqns, vars, linsolv, pm, mymom, n, 
-    bu, bv, d20, d11, d02, c20, c11, c02, M1, rho, up, Vf, mu2avg, 
-    mu2, M3, rh3, up3, vp21, vp22, rho21, rho22, u, v, nro, nn, uu, vv}, 
-
-    nro = Length[DeleteDuplicates[ks[[All,3]]]];
-    mymom = Pointer[moms, ks]; 
-    (* operating on conditioned moments for each Ro slice *)
-    Do[
-        n = Table[0, {i, 4}]; u = n; v = n; 
-        bu  = mymom[1, 0, l-1]/mymom[0, 0, l-1]; 
-        bv  = mymom[0, 1, l-1]/mymom[0, 0, l-1]; 
-        d20 = mymom[2, 0, l-1]/mymom[0, 0, l-1]; 
-        d11 = mymom[1, 1, l-1]/mymom[0, 0, l-1]; 
-        d02 = mymom[0, 2, l-1]/mymom[0, 0, l-1]; 
-        c20 = d20 - bu^2; 
-        c11 = d11 - bu bv;
-        c02 = d02 - bv^2; 
-        M1 = {1, 0, c20}; 
-        {rho, up} = HYQMOM[M1]; 
-        Vf = c11 up/c20; 
-        mu2avg = c02 - Total[rho Vf^2]; 
-        mu2avg = Max[mu2avg, 0]; 
-        mu2 = mu2avg; 
-        M3 = {1, 0, mu2}; 
-        {rh3, up3} = HYQMOM[M3]; 
-        vp21 = up3[[1]]; 
-        vp22 = up3[[2]]; 
-        rho21 = rh3[[1]]; 
-        rho22 = rh3[[2]]; 
-
-        n[[1]] = rho[[1]] rho21; 
-        n[[2]] = rho[[1]] rho22; 
-        n[[3]] = rho[[2]] rho21; 
-        n[[4]] = rho[[2]] rho22; 
-        n = mymom[0, 0, l-1] n; 
-
-        u[[1]] = up[[1]]; 
-        u[[2]] = up[[1]]; 
-        u[[3]] = up[[2]]; 
-        u[[4]] = up[[2]]; 
-        u = bu + u;
-
-        v[[1]] = Vf[[1]] + vp21; 
-        v[[2]] = Vf[[1]] + vp22; 
-        v[[3]] = Vf[[2]] + vp21; 
-        v[[4]] = Vf[[2]] + vp22; 
-        v = bv + v; 
-
-        nn[l] = n;
-        uu[l] = u;
-        vv[l] = v;
-    ,{l,nro}];
-    Return[{nn,{uu,vv}}, Module];
-];
- 
 
 CHYQMOM9p[momin_, kk_, qmax_] := 
   Module[{moms = momin, ks = kk, vars, linsolv, mymom, n, csmall, 
@@ -1122,6 +1127,22 @@ VanderSolve[x_,q_]:=Module[{n,w,b,s,t,xx,c},
         w[[i]]=s/t;
     ,{i,1,n}];
     Return[w,Module];
+];
+
+err[fine_,coarse_]:=Norm[fine-coarse]/Norm[fine];
+
+RK23[mom_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,rhs},
+	(* SSP-RK2 *)
+	{moms,rhs}=myrhs[moms,t];
+	momstemp1=moms+dt rhs;
+	{momstemp1,rhs}=myrhs[momstemp1,t+dt];
+	mome=(1/2) moms+(1/2)(momstemp1+dt rhs);
+
+	(* SSP-RK3 *)
+	momstemp2=(3/4)moms+(1/4)(momstemp1+dt rhs);
+	{momstemp2,rhs}=myrhs[momstemp2,t+dt/2];
+	moms=(1/3)moms+(2/3)(momstemp2+dt rhs);
+	Return[{moms,err[moms,mome]},Module];
 ];
 
 End[];
