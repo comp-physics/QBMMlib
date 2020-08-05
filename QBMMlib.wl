@@ -73,32 +73,55 @@ MomentFind[moms_, ks_, idx_] := Module[
 ];
 
 
-TransportTerms[eqn_,minvars_]:=Module[
-    {v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
 
-    invars = minvars[[1]];
-    v4 = minvars[[2]];
-    dim=Length[invars];
-
-    idx=Table[Symbol["c"][i],{i,dim}];
-
+TransportTerms[eqn_, rt_, dep_] := Module[
+   {v, integrand, dim, mrdd, list, exp, coefs, exps, vars, l, m, n, 
+    freevar, invars, idx},
+   
+   (* How many derivatives do we have? *)
+   Do[
+        If[MemberQ[eqn,D[rt,{dep,i}], {0,-1}, Heads->True], dim = i];
+    ,{i,10}];
+    If[dim > 2,Print["Error: Highest order derivate > 2. Its order: ", dim];Abort[];];
+   
+    (* Free variables, get rid of the dependent variable *)
+    freevar = DeleteCases[DeleteDuplicates@Cases[eqn, _Symbol, Infinity], dep];
+    freevar = DeleteCases[freevar, _?NumericQ, Infinity];
+    If[Length[freevar] == 1, dim = 3];
+    If[Length[freevar] > 1, 
+        Print["Error: Too many free variables in governing equation: ", freevar]; Abort[];
+    ];
+   
+    idx = Table[Symbol["c"][i], {i, dim}];
     If[dim == 1, 
-        vars = {v[1]}; 
+        vars = {v[1]};
         {l} = idx;
+        v[1] = rt;
+        v4 = D[rt, dep];
+        invars = {v[1]};
     ];
-    If[dim==2,
-        vars={v[1],v[2]};
-        {l,m}=idx;
+    If[dim == 2, 
+        vars = {v[1], v[2]};
+        {l, m} = idx;
+        v[1] = rt;
+        v[2] = D[rt, dep];
+        v4 = D[rt, {dep, 2}];
+        invars = {v[1], v[2]};
+     ];
+     If[dim == 3, 
+        vars = {v[1], v[2], v[3]};
+        {l, m, n} = idx;
+        v[1] = rt;
+        v[2] = D[rt, dep];
+        v[3] = freevar[[1]];
+        v4 = D[rt, {dep, 2}];
+        invars = {v[1], v[2], v[3]};
+     ];
+   
+    If[dim != 1 && dim != 2 && dim != 3, 
+        Print["Error: Dimesionallity not supported. You used dim = ", dim]; Abort[];
     ];
-    If[dim==3,
-        vars={v[1],v[2],v[3]};
-        {l,m,n}=idx;
-    ];
-    If[dim!=1&&dim!=2&&dim!=3,
-        Print["Error: Dimesionallity not supported. You used dim = ",dim];Abort[];
-    ];
-
-    Do[v[i]=invars[[i]],{i,dim}];
+   
     mrdd=v4/.Solve[eqn,v4][[1]];
 
     If[dim==1,integrand=mrdd v[1]^(l-1)];
@@ -115,11 +138,12 @@ TransportTerms[eqn_,minvars_]:=Module[
     ];
 
     (* Add term that isn't in the integrand *)
-    If[dim==2,AppendTo[exps,{l-1,m+1}]];
-    If[dim==3,AppendTo[exps,{l-1,m+1,n}]];
-    If[dim>1,AppendTo[coefs,l]];
-    Return[{coefs,exps},Module];
+    If[dim == 2, AppendTo[exps, {l - 1, m + 1}]];
+    If[dim == 3, AppendTo[exps, {l - 1, m + 1, n}]];
+    If[dim > 1, AppendTo[coefs, l]];
+    Return[{coefs, exps}, Module];
 ];
+
 
 OutAbscissa[xi_] := Module[{nro,dim},
     If[NumberQ[Max[xi[[1]][1]]],
@@ -132,7 +156,7 @@ OutAbscissa[xi_] := Module[{nro,dim},
     ];
 
     If[dim == 1, Return[Re[Flatten[xi]],Module]];
-	If[dim == 2, Return[Re[Thread[xi]]]];
+    If[dim == 2, Return[Re[Thread[xi]]]];
 	If[dim == 3, 
         nro = 0;
         Do[
@@ -1145,5 +1169,58 @@ RK23[mom_,myrhs_,t_,dt_]:=Module[{moms=mom,mome,momstemp1,momstemp2,rhs},
 	Return[{moms,err[moms,mome]},Module];
 ];
 
+
+
+
 End[];
 EndPackage[];
+
+(* 
+TransportTerms[eqn_,minvars_]:=Module[
+    {v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
+
+    invars = minvars[[1]];
+    v4 = minvars[[2]];
+    dim=Length[invars];
+
+    idx=Table[Symbol["c"][i],{i,dim}];
+
+    If[dim == 1, 
+        vars = {v[1]}; 
+        {l} = idx;
+    ];
+    If[dim==2,
+        vars={v[1],v[2]};
+        {l,m}=idx;
+    ];
+    If[dim==3,
+        vars={v[1],v[2],v[3]};
+        {l,m,n}=idx;
+    ];
+    If[dim!=1&&dim!=2&&dim!=3,
+        Print["Error: Dimesionallity not supported. You used dim = ",dim];Abort[];
+    ];
+
+    Do[v[i]=invars[[i]],{i,dim}];
+    mrdd=v4/.Solve[eqn,v4][[1]];
+
+    If[dim==1,integrand=mrdd v[1]^(l-1)];
+    If[dim==2,integrand=mrdd v[1]^l v[2]^(m-1)];
+    If[dim==3,integrand=mrdd v[1]^l v[2]^(m-1) v[3]^n];
+
+    list=PowerExpand[List@@Distribute[integrand]];
+    exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
+
+    If[dim==1,
+        coefs=l Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
+    ,
+        coefs=m Table[Coefficient[list[[i]],Product[v[j]^exps[[i,j]],{j,dim}]],{i,Length[list]}];
+    ];
+
+    (* Add term that isn't in the integrand *)
+    If[dim==2,AppendTo[exps,{l-1,m+1}]];
+    If[dim==3,AppendTo[exps,{l-1,m+1,n}]];
+    If[dim>1,AppendTo[coefs,l]];
+    Return[{coefs,exps},Module];
+];
+*)
