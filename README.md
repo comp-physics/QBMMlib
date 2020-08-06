@@ -2,7 +2,9 @@
 
 ## Authors
 
-Spencer H. Bryngelson, Rodney O. Fox, Tim Colonius 
+* Spencer H. Bryngelson (Caltech) 
+* Rodney O. Fox (Iowa State)
+* Tim Colonius (Caltech)
 
 ## Abstract
 
