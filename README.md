@@ -27,10 +27,10 @@ Quadratures then closes the moment transport equations.
 ## Installation
 
 To install QBMMlib, open Wolfram Mathematica and choose the following options: 
-* `File` $\to$ `Install...`
-    * `Type` $\to$ `Package`
-    * `Source` $\to$ `QBMMlib.wl`
-    * `InstallName` $\to$ `QBMMlib`
+* `File` -> `Install...`
+    * `Type` -> `Package`
+    * `Source` -> `QBMMlib.wl`
+    * `InstallName` -> `QBMMlib`
     * `OK`
 
 This places `QBMMlib.wl` where Mathematica can find it. You can then issue:
