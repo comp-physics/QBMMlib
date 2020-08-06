@@ -1,12 +1,27 @@
 # QBMMlib
 
-`QBMMlib.wl` is a Wolfram Language (Mathematica) library I wrote to solve bubble cavitation problems using quadrature-based moment methods.
-It includes CQMOM and CHyQMOM implementations for two independent cooridnates plus conditioning on an optional third coordinate.
+## Authors
+
+Spencer H. Bryngelson, Rodney O. Fox, Tim Colonius 
+
+## Abstract
+
+QBMMlib is an open source Mathematica package of quadrature-based moment methods and their algorithms.
+Such methods are commonly used to solve fully-coupled disperse flow and combustion problems, though formulating and closing the corresponding governing equations can be complex.
+QBMMlib aims to make analyzing these techniques simple and more accessible.
+Its routines use symbolic manipulation to formulate the moment transport equations for a population balance equation and a prescribed dynamical system.
+However, the resulting moment transport equations are unclosed.
+QBMMlib trades the moments for a set of quadrature points and weights via an inversion algorithm, of which several are available.
+Quadratures then closes the moment transport equations.
+
+## Files
+
+* `QBMMlib.wl` Package file
+* `Examples.nb` Example notebook 
 
 ## Acknowledgement
-Great thanks is owed to Professors Rodney Fox and Alberto Passalacqua (Iowa State University) for their part in developing these algorithms and teaching me the same.
-This work was carried out during my time at the California Institute of Technology, where I worked with Tim Colonius. 
-Funding provided via the U.S. Office of Naval Research under grant numbers N0014-17-1-2676 and N0014-18-1-2625.
+Great thanks is to Professor Alberto Passalacqua (Iowa State University) for his part in developing these algorithms and teaching me the same.
+Funding was provided via the U.S. Office of Naval Research under grant numbers N0014-17-1-2676 and N0014-18-1-2625.
 
 ## References
 
