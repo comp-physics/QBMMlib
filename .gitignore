@@ -6,6 +6,7 @@ depricated/
 pyqbmm/
 profiling/
 full_moments/
+misc/
 .DS_store
 SHB/
 *MFC*
