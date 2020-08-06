@@ -3,8 +3,10 @@
 BeginPackage["QBMMlib`"];
 
 TransportTerms::usage="
-    TransportTerms[eqn,vars] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
-    'eqn' is the governing ODE, 'invars = {{xi},xi3}' where xi are a list internal coordinates and xi3 is the time derivative of the highest order internal coordinate.
+    TransportTerms[eqn,depvar,indvar] computes the coefficients and exponents of the internal coordinates that correspond to the RHS operator of the moment transport equations.
+    Syntax follows NDSolve and the like.
+    'eqn' is the governing ODE, 'depvar' is the dependent variable (e.g. x[t]), and 'indvar' is the independent variable (e.g. t).
+    One free variable is allowed, which can be conditioned upon for a 3D moment method.
 ";
 
 MomentIndex::usage = "
