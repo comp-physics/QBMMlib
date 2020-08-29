@@ -102,7 +102,7 @@ MomentFind[moms_, ks_, idx_] := Module[
 
 TransportTerms[eqn_, rt_, dep_] := Module[
    {v, integrand, dim, mrdd, list, exp, coefs, exps, vars, l, m, n, 
-    freevar, invars, idx},
+    freevar, invars, idx, nterms},
    
    (* How many derivatives do we have? *)
    Do[
@@ -154,7 +154,11 @@ TransportTerms[eqn_, rt_, dep_] := Module[
     If[dim==2,integrand=mrdd v[1]^l v[2]^(m-1)];
     If[dim==3,integrand=mrdd v[1]^l v[2]^(m-1) v[3]^n];
 
-    list=PowerExpand[List@@Distribute[integrand]];
+    nterms = Length[Expand[integrand] + Unique["x"]] - 1;
+    If[nterms==1,
+        list={integrand},
+        list=PowerExpand[List@@Distribute[integrand]]
+    ];
     exps=Table[Exponent[list[[i]],j],{i,Length[list]},{j,invars}];
 
     If[dim==1,
@@ -1202,7 +1206,7 @@ End[];
 EndPackage[];
 
 (* 
-TransportTerms[eqn_,minvars_]:=Module[
+Transportmerms[eqn_,minvars_]:=Module[
     {v,integrand,dim,mrdd,list,exp,coefs,exps,vars,l,m,n},
 
     invars = minvars[[1]];
