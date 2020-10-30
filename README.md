@@ -29,7 +29,8 @@ Url           = {http://arxiv.org/abs/2008.05063v1},
 
 ## Python version!
 
-If Mathematica just isn't for you, we also developed a Python version of QBMMlib called [PyQBMMlib](https://github.com/sbryngelson/PyQBMMlib). Read more about it at the link.
+If Mathematica just isn't for you, we also developed a Python version of QBMMlib called [PyQBMMlib](https://github.com/sbryngelson/PyQBMMlib).
+Read more about it at the link.
 
 ## Abstract
 
