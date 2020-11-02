@@ -2,7 +2,7 @@
 
 ## Authors
 
-* Spencer H. Bryngelson (Caltech) 
+* [Spencer H. Bryngelson](https://bryngelson-research.com) (Caltech) 
     * spencer@caltech.edu
 * Tim Colonius (Caltech)
     * colonius@caltech.edu
