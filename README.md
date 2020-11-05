@@ -16,14 +16,12 @@ Check out the QBMMlib preprint on the [arXiv](https://arxiv.org/abs/2008.05063).
 ### Cite me!
 
 ```
-@article{2008.05063v1,
-Author        = {Spencer H. Bryngelson and Tim Colonius and Rodney O. Fox},
-Title         = {{QBMMlib: A} library of quadrature-based moment methods},
-Eprint        = {2008.05063},
-ArchivePrefix = {arXiv},
-Year          = {2020},
-Month         = {Aug},
-Url           = {http://arxiv.org/abs/2008.05063v1},
+@article{bryngelson_2020,
+    Author        = {Spencer H. Bryngelson and Tim Colonius and Rodney O. Fox},
+    Title         = {{QBMMlib: A} library of quadrature-based moment methods},
+    Volume        = 12
+    Pages         = 100615
+    Year          = {2020},
 }
 ```
 
