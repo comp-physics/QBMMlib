@@ -9,18 +9,15 @@
 * Rodney O. Fox (Iowa State)
     * rofox@iastate.edu
 
-## Preprint
-
-Check out the QBMMlib preprint on the [arXiv](https://arxiv.org/abs/2008.05063).
-
-### Cite me!
+## Cite me!
 
 ```
 @article{bryngelson_2020,
     Author        = {Spencer H. Bryngelson and Tim Colonius and Rodney O. Fox},
     Title         = {{QBMMlib: A} library of quadrature-based moment methods},
-    Volume        = 12
-    Pages         = 100615
+    Journal       = {SoftwareX},
+    Volume        = {12},
+    Pages         = {100615},
     Year          = {2020},
 }
 ```
