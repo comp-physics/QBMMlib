@@ -1,5 +1,7 @@
 # QBMMlib
 
+[![DOI](https://zenodo.org/badge/doi/10.1016/j.softx.2020.100615.svg)](http://dx.doi.org/10.1016/j.softx.2020.100615)
+
 ## Authors
 
 * [Spencer H. Bryngelson](https://bryngelson-research.com) (Caltech) 
