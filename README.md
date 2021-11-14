@@ -4,8 +4,8 @@
 
 ## Authors
 
-* [Spencer H. Bryngelson](https://bryngelson-research.com) (Caltech) 
-    * spencer@caltech.edu
+* [Spencer H. Bryngelson](https://comp-physics.group) (Gatech) 
+    * shb@gatech.edu
 * Tim Colonius (Caltech)
     * colonius@caltech.edu
 * Rodney O. Fox (Iowa State)
